@@ -48,6 +48,14 @@ npm run prisma:seed
 - No Dashboard, use o botao Exportar para gerar relatorios em XLSX, CSV, JSON ou TSV.
 - O XLSX inclui abas com resumo executivo, indicadores por grupo e detalhes completos das tarefas.
 
+## Campos do assessment
+- Aplicavel: define se a tarefa se aplica ao escopo (Sim/Não).
+- Maturidade: nivel atual (0-5) de implementacao da tarefa.
+- Alvo: nivel desejado (0-5) para a tarefa.
+- Gap: diferenca entre Alvo e Maturidade (Alvo - Maturidade).
+- Peso: importancia da tarefa (1-5).
+- Prioridade: Gap * Peso (pode ser negativo se Maturidade > Alvo).
+
 ## Usuarios e roles
 - Acesse `/users` como Admin para criar usuarios e definir roles (Admin, Assessor, Viewer).
 
