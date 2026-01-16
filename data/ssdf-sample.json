@@ -1,0 +1,382 @@
+{
+  "tasks": [
+    {
+      "group": "PO",
+      "practiceId": "PO.1",
+      "practice": "Definir requisitos de seguranca para desenvolvimento",
+      "taskId": "PO.1.1",
+      "task": "Identificar e documentar requisitos de seguranca para o ciclo de vida do software.",
+      "examples": "Politicas internas, requisitos regulatorios, requisitos de clientes.",
+      "references": "NIST SSDF PO.1"
+    },
+    {
+      "group": "PO",
+      "practiceId": "PO.1",
+      "practice": "Definir requisitos de seguranca para desenvolvimento",
+      "taskId": "PO.1.2",
+      "task": "Incorporar requisitos de privacidade e conformidade nos requisitos de seguranca.",
+      "examples": "LGPD, requisitos contratuais, requisitos de setor.",
+      "references": "NIST SSDF PO.1"
+    },
+    {
+      "group": "PO",
+      "practiceId": "PO.2",
+      "practice": "Implementar papeis e responsabilidades",
+      "taskId": "PO.2.1",
+      "task": "Definir papeis e responsabilidades de seguranca para o SDLC.",
+      "examples": "RACI, segregacao de funcoes, owners por etapa.",
+      "references": "NIST SSDF PO.2"
+    },
+    {
+      "group": "PO",
+      "practiceId": "PO.2",
+      "practice": "Implementar papeis e responsabilidades",
+      "taskId": "PO.2.2",
+      "task": "Treinar equipes sobre responsabilidades de seguranca.",
+      "examples": "Treinamento anual, onboarding, campanhas de conscientizacao.",
+      "references": "NIST SSDF PO.2"
+    },
+    {
+      "group": "PO",
+      "practiceId": "PO.3",
+      "practice": "Implementar ferramentas e infraestrutura",
+      "taskId": "PO.3.1",
+      "task": "Selecionar e manter ferramentas para suportar desenvolvimento seguro.",
+      "examples": "SAST, SCA, DAST, scanner de segredo.",
+      "references": "NIST SSDF PO.3"
+    },
+    {
+      "group": "PO",
+      "practiceId": "PO.3",
+      "practice": "Implementar ferramentas e infraestrutura",
+      "taskId": "PO.3.2",
+      "task": "Padronizar pipelines e ambientes de build com controles de seguranca.",
+      "examples": "CI/CD padronizado, hardening de runners.",
+      "references": "NIST SSDF PO.3"
+    },
+    {
+      "group": "PO",
+      "practiceId": "PO.4",
+      "practice": "Definir criterios de seguranca",
+      "taskId": "PO.4.1",
+      "task": "Estabelecer criterios de aceitacao de seguranca para releases.",
+      "examples": "Gate por severidade, thresholds de cobertura.",
+      "references": "NIST SSDF PO.4"
+    },
+    {
+      "group": "PO",
+      "practiceId": "PO.4",
+      "practice": "Definir criterios de seguranca",
+      "taskId": "PO.4.2",
+      "task": "Definir limiares de risco para aprovacao de excecoes.",
+      "examples": "Plano de risco, aprovacao executiva.",
+      "references": "NIST SSDF PO.4"
+    },
+    {
+      "group": "PO",
+      "practiceId": "PO.4",
+      "practice": "Definir criterios de seguranca",
+      "taskId": "PO.4.3",
+      "task": "Medir e reportar indicadores de seguranca do SDLC.",
+      "examples": "KPIs de vulnerabilidades, lead time de correcoes.",
+      "references": "NIST SSDF PO.4"
+    },
+    {
+      "group": "PO",
+      "practiceId": "PO.5",
+      "practice": "Gerenciar infraestrutura e componentes",
+      "taskId": "PO.5.1",
+      "task": "Inventariar sistemas, repositorios e componentes usados.",
+      "examples": "SBOM, inventario de repos.",
+      "references": "NIST SSDF PO.5"
+    },
+    {
+      "group": "PO",
+      "practiceId": "PO.5",
+      "practice": "Gerenciar infraestrutura e componentes",
+      "taskId": "PO.5.2",
+      "task": "Manter configuracoes seguras de build e CI/CD.",
+      "examples": "Hardening de pipelines, uso de secrets manager.",
+      "references": "NIST SSDF PO.5"
+    },
+    {
+      "group": "PO",
+      "practiceId": "PO.5",
+      "practice": "Gerenciar infraestrutura e componentes",
+      "taskId": "PO.5.3",
+      "task": "Controlar acesso e privilegios a ferramentas e repositorios.",
+      "examples": "MFA, least privilege, revisoes periodicas.",
+      "references": "NIST SSDF PO.5"
+    },
+    {
+      "group": "PO",
+      "practiceId": "PO.5",
+      "practice": "Gerenciar infraestrutura e componentes",
+      "taskId": "PO.5.4",
+      "task": "Planejar continuidade e backup de artefatos e configuracoes.",
+      "examples": "Backups automatizados, DR para repositorios.",
+      "references": "NIST SSDF PO.5"
+    },
+    {
+      "group": "PO",
+      "practiceId": "PO.5",
+      "practice": "Gerenciar infraestrutura e componentes",
+      "taskId": "PO.5.5",
+      "task": "Avaliar fornecedores e terceiros frente a requisitos de seguranca.",
+      "examples": "Questionarios de risco, due diligence.",
+      "references": "NIST SSDF PO.5"
+    },
+    {
+      "group": "PS",
+      "practiceId": "PS.1",
+      "practice": "Proteger codigo contra acesso nao autorizado",
+      "taskId": "PS.1.1",
+      "task": "Aplicar controle de acesso e segregacao de funcoes em repositorios.",
+      "examples": "RBAC em repos, grupos por time.",
+      "references": "NIST SSDF PS.1"
+    },
+    {
+      "group": "PS",
+      "practiceId": "PS.1",
+      "practice": "Proteger codigo contra acesso nao autorizado",
+      "taskId": "PS.1.2",
+      "task": "Usar revisoes e politicas de merge para proteger codigo.",
+      "examples": "Code review, branch protection.",
+      "references": "NIST SSDF PS.1"
+    },
+    {
+      "group": "PS",
+      "practiceId": "PS.1",
+      "practice": "Proteger codigo contra acesso nao autorizado",
+      "taskId": "PS.1.3",
+      "task": "Monitorar atividades suspeitas e alertas de repositorios.",
+      "examples": "Alertas de acesso, auditoria de push.",
+      "references": "NIST SSDF PS.1"
+    },
+    {
+      "group": "PS",
+      "practiceId": "PS.2",
+      "practice": "Verificar integridade de software",
+      "taskId": "PS.2.1",
+      "task": "Gerar e armazenar hashes ou assinaturas de artefatos.",
+      "examples": "SHA-256, assinatura de release.",
+      "references": "NIST SSDF PS.2"
+    },
+    {
+      "group": "PS",
+      "practiceId": "PS.2",
+      "practice": "Verificar integridade de software",
+      "taskId": "PS.2.2",
+      "task": "Verificar integridade durante build e deploy.",
+      "examples": "Verificacao de checksum na pipeline.",
+      "references": "NIST SSDF PS.2"
+    },
+    {
+      "group": "PS",
+      "practiceId": "PS.2",
+      "practice": "Verificar integridade de software",
+      "taskId": "PS.2.3",
+      "task": "Disponibilizar metodos de verificacao para consumidores.",
+      "examples": "Checksums publicados, assinaturas publicas.",
+      "references": "NIST SSDF PS.2"
+    },
+    {
+      "group": "PS",
+      "practiceId": "PS.3",
+      "practice": "Arquivar e proteger releases",
+      "taskId": "PS.3.1",
+      "task": "Arquivar releases e artefatos com metadados completos.",
+      "examples": "Armazenamento em repo de artefatos.",
+      "references": "NIST SSDF PS.3"
+    },
+    {
+      "group": "PS",
+      "practiceId": "PS.3",
+      "practice": "Arquivar e proteger releases",
+      "taskId": "PS.3.2",
+      "task": "Proteger artefatos arquivados com controles e retencao.",
+      "examples": "WORM, controle de acesso, retencao.",
+      "references": "NIST SSDF PS.3"
+    },
+    {
+      "group": "PW",
+      "practiceId": "PW.1",
+      "practice": "Projetar software para atender requisitos de seguranca",
+      "taskId": "PW.1.1",
+      "task": "Realizar modelagem de ameacas para sistemas.",
+      "examples": "STRIDE, diagramas de fluxo.",
+      "references": "NIST SSDF PW.1"
+    },
+    {
+      "group": "PW",
+      "practiceId": "PW.1",
+      "practice": "Projetar software para atender requisitos de seguranca",
+      "taskId": "PW.1.2",
+      "task": "Definir requisitos de seguranca na arquitetura.",
+      "examples": "Padroes de seguranca, controles na arquitetura.",
+      "references": "NIST SSDF PW.1"
+    },
+    {
+      "group": "PW",
+      "practiceId": "PW.1",
+      "practice": "Projetar software para atender requisitos de seguranca",
+      "taskId": "PW.1.3",
+      "task": "Planejar mitigacoes para riscos identificados.",
+      "examples": "Backlog de riscos, requisitos de mitigacao.",
+      "references": "NIST SSDF PW.1"
+    },
+    {
+      "group": "PW",
+      "practiceId": "PW.2",
+      "practice": "Revisar design e codigo para seguranca",
+      "taskId": "PW.2.1",
+      "task": "Revisar design para requisitos de seguranca.",
+      "examples": "Checklist de design seguro.",
+      "references": "NIST SSDF PW.2"
+    },
+    {
+      "group": "PW",
+      "practiceId": "PW.2",
+      "practice": "Revisar design e codigo para seguranca",
+      "taskId": "PW.2.2",
+      "task": "Executar revisoes de codigo com foco em seguranca.",
+      "examples": "Peer review, pairing.",
+      "references": "NIST SSDF PW.2"
+    },
+    {
+      "group": "PW",
+      "practiceId": "PW.2",
+      "practice": "Revisar design e codigo para seguranca",
+      "taskId": "PW.2.3",
+      "task": "Usar analise estatica para encontrar falhas.",
+      "examples": "SAST com regras de seguranca.",
+      "references": "NIST SSDF PW.2"
+    },
+    {
+      "group": "PW",
+      "practiceId": "PW.3",
+      "practice": "Reutilizar software seguro",
+      "taskId": "PW.3.1",
+      "task": "Preferir componentes aprovados e verificados.",
+      "examples": "Catalogo interno de bibliotecas.",
+      "references": "NIST SSDF PW.3"
+    },
+    {
+      "group": "PW",
+      "practiceId": "PW.3",
+      "practice": "Reutilizar software seguro",
+      "taskId": "PW.3.2",
+      "task": "Gerenciar dependencias e suas atualizacoes.",
+      "examples": "SCA, policy de versoes.",
+      "references": "NIST SSDF PW.3"
+    },
+    {
+      "group": "PW",
+      "practiceId": "PW.4",
+      "practice": "Criar e manter componentes seguros",
+      "taskId": "PW.4.1",
+      "task": "Aplicar padroes de codificacao segura.",
+      "examples": "Guias OWASP, linters.",
+      "references": "NIST SSDF PW.4"
+    },
+    {
+      "group": "PW",
+      "practiceId": "PW.4",
+      "practice": "Criar e manter componentes seguros",
+      "taskId": "PW.4.2",
+      "task": "Remover funcionalidades inseguras e credenciais expostas.",
+      "examples": "Segredos fora do codigo, flags de debug.",
+      "references": "NIST SSDF PW.4"
+    },
+    {
+      "group": "PW",
+      "practiceId": "PW.5",
+      "practice": "Automacao para desenvolvimento seguro",
+      "taskId": "PW.5.1",
+      "task": "Automatizar verificacoes de seguranca na CI/CD.",
+      "examples": "Checks automatizados, bloqueio por policy.",
+      "references": "NIST SSDF PW.5"
+    },
+    {
+      "group": "PW",
+      "practiceId": "PW.5",
+      "practice": "Automacao para desenvolvimento seguro",
+      "taskId": "PW.5.2",
+      "task": "Automatizar verificacao de configuracao segura.",
+      "examples": "IaC scanning, policy as code.",
+      "references": "NIST SSDF PW.5"
+    },
+    {
+      "group": "PW",
+      "practiceId": "PW.6",
+      "practice": "Verificar seguranca do software",
+      "taskId": "PW.6.1",
+      "task": "Executar testes dinamicos e fuzzing quando aplicavel.",
+      "examples": "DAST, fuzzing, testes de abuso.",
+      "references": "NIST SSDF PW.6"
+    },
+    {
+      "group": "PW",
+      "practiceId": "PW.7",
+      "practice": "Verificar seguranca do release",
+      "taskId": "PW.7.1",
+      "task": "Validar resultados de seguranca antes do release.",
+      "examples": "Checklist final de seguranca.",
+      "references": "NIST SSDF PW.7"
+    },
+    {
+      "group": "RV",
+      "practiceId": "RV.1",
+      "practice": "Identificar e confirmar vulnerabilidades",
+      "taskId": "RV.1.1",
+      "task": "Monitorar fontes de vulnerabilidades internas e externas.",
+      "examples": "Bug bounty, CVE feeds, suporte.",
+      "references": "NIST SSDF RV.1"
+    },
+    {
+      "group": "RV",
+      "practiceId": "RV.1",
+      "practice": "Identificar e confirmar vulnerabilidades",
+      "taskId": "RV.1.2",
+      "task": "Confirmar vulnerabilidades reportadas e avaliar impacto.",
+      "examples": "Reproducao, analise de impacto.",
+      "references": "NIST SSDF RV.1"
+    },
+    {
+      "group": "RV",
+      "practiceId": "RV.2",
+      "practice": "Priorizar e corrigir vulnerabilidades",
+      "taskId": "RV.2.1",
+      "task": "Priorizar vulnerabilidades com base em risco e exposicao.",
+      "examples": "CVSS, risco de negocio.",
+      "references": "NIST SSDF RV.2"
+    },
+    {
+      "group": "RV",
+      "practiceId": "RV.2",
+      "practice": "Priorizar e corrigir vulnerabilidades",
+      "taskId": "RV.2.2",
+      "task": "Corrigir vulnerabilidades e acompanhar ate resolucao.",
+      "examples": "Planos de correcao, SLA.",
+      "references": "NIST SSDF RV.2"
+    },
+    {
+      "group": "RV",
+      "practiceId": "RV.3",
+      "practice": "Analisar causas raiz",
+      "taskId": "RV.3.1",
+      "task": "Registrar licoes aprendidas e causas raiz.",
+      "examples": "Post-mortem, RCA.",
+      "references": "NIST SSDF RV.3"
+    },
+    {
+      "group": "RV",
+      "practiceId": "RV.3",
+      "practice": "Analisar causas raiz",
+      "taskId": "RV.3.2",
+      "task": "Atualizar processos e controles para prevenir recorrencias.",
+      "examples": "Atualizacao de guidelines e treinamentos.",
+      "references": "NIST SSDF RV.3"
+    }
+  ]
+}

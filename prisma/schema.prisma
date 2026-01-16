@@ -1,0 +1,170 @@
+// Prisma schema for SSDF assessment app
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  ASSESSOR
+  VIEWER
+}
+
+enum TaskStatus {
+  NAO_INICIADO
+  EM_ANDAMENTO
+  IMPLEMENTADO
+  NA
+}
+
+enum EvidenceType {
+  DOCUMENTO
+  TICKET
+  URL
+  PRINT
+  PIPELINE
+  OUTRO
+}
+
+model User {
+  id           String      @id @default(cuid()) @map("id")
+  name         String      @map("name")
+  email        String      @unique @map("email")
+  passwordHash String      @map("password_hash")
+  role         Role        @default(VIEWER) @map("role")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+  assessmentsCreated Assessment[] @relation("AssessmentCreatedBy")
+  auditLogs    AuditLog[]
+
+  @@map("users")
+}
+
+model Organization {
+  id        String       @id @default(cuid()) @map("id")
+  name      String       @unique @map("name")
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+  assessments Assessment[]
+
+  @@map("organizations")
+}
+
+model Assessment {
+  id              String    @id @default(cuid()) @map("id")
+  organizationId  String    @map("organization_id")
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  unit            String    @map("unit")
+  scope           String    @map("scope")
+  assessmentOwner String    @map("assessment_owner")
+  startDate       DateTime  @map("start_date")
+  reviewDate      DateTime? @map("review_date")
+  notes           String?   @map("notes") @db.Text
+  createdById     String?   @map("created_by_id")
+  createdBy       User?     @relation("AssessmentCreatedBy", fields: [createdById], references: [id])
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  taskResponses   AssessmentTaskResponse[]
+
+  @@index([organizationId])
+  @@map("assessments")
+}
+
+model SsdfGroup {
+  id          String        @id @map("id")
+  name        String        @map("name")
+  description String?       @map("description")
+  practices   SsdfPractice[]
+
+  @@map("ssdf_groups")
+}
+
+model SsdfPractice {
+  id      String     @id @map("id")
+  groupId String     @map("group_id")
+  group   SsdfGroup  @relation(fields: [groupId], references: [id])
+  name    String     @map("name")
+  tasks   SsdfTask[]
+
+  @@index([groupId])
+  @@map("ssdf_practices")
+}
+
+model SsdfTask {
+  id         String     @id @map("id")
+  practiceId String     @map("practice_id")
+  practice   SsdfPractice @relation(fields: [practiceId], references: [id])
+  name       String     @map("name")
+  examples   String?    @map("examples") @db.Text
+  references String?    @map("references") @db.Text
+  responses  AssessmentTaskResponse[]
+
+  @@index([practiceId])
+  @@map("ssdf_tasks")
+}
+
+model AssessmentTaskResponse {
+  id           String     @id @default(cuid()) @map("id")
+  assessmentId String     @map("assessment_id")
+  assessment   Assessment @relation(fields: [assessmentId], references: [id])
+  taskId       String     @map("task_id")
+  task         SsdfTask   @relation(fields: [taskId], references: [id])
+  applicable   Boolean    @default(true) @map("applicable")
+  status       TaskStatus @default(NAO_INICIADO) @map("status")
+  maturity     Int        @default(0) @map("maturity")
+  target       Int        @default(3) @map("target")
+  weight       Int        @default(3) @map("weight")
+  evidenceText String?    @map("evidence_text") @db.Text
+  evidenceLinks String?   @map("evidence_links") @db.Text
+  owner        String?    @map("owner")
+  team         String?    @map("team")
+  dueDate      DateTime?  @map("due_date")
+  lastReview   DateTime?  @map("last_review")
+  notes        String?    @map("notes") @db.Text
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+  evidences    Evidence[]
+
+  @@unique([assessmentId, taskId])
+  @@index([assessmentId, status])
+  @@index([taskId])
+  @@map("assessment_task_responses")
+}
+
+model Evidence {
+  id          String     @id @default(cuid()) @map("id")
+  responseId  String     @map("response_id")
+  response    AssessmentTaskResponse @relation(fields: [responseId], references: [id])
+  description String     @map("description")
+  type        EvidenceType @map("type")
+  link        String?    @map("link")
+  owner       String?    @map("owner")
+  date        DateTime?  @map("date")
+  validUntil  DateTime?  @map("valid_until")
+  notes       String?    @map("notes") @db.Text
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  @@index([responseId])
+  @@map("evidences")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid()) @map("id")
+  userId    String?  @map("user_id")
+  user      User?    @relation(fields: [userId], references: [id])
+  entity    String   @map("entity")
+  entityId  String   @map("entity_id")
+  action    String   @map("action")
+  before    Json?    @map("before")
+  after     Json?    @map("after")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([entity, entityId])
+  @@map("audit_logs")
+}

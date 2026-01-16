@@ -1,0 +1,205 @@
+﻿import AssessmentPicker from "@/components/assessment/assessment-picker";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { canEdit } from "@/lib/rbac";
+import { prisma } from "@/lib/prisma";
+import { evidenceTypeOptions } from "@/lib/ssdf";
+import { createEvidence } from "@/app/(app)/evidences/actions";
+import { formatDate } from "@/lib/format";
+
+export default async function EvidencesPage({
+  searchParams
+}: {
+  searchParams?: { assessmentId?: string };
+}) {
+  const session = await getServerSession(authOptions);
+  const allowEdit = canEdit(session?.user?.role);
+
+  const assessments = await prisma.assessment.findMany({
+    include: { organization: true },
+    orderBy: { createdAt: "desc" }
+  });
+
+  const assessmentOptions = assessments.map((assessment) => ({
+    id: assessment.id,
+    label: `${assessment.organization.name} - ${assessment.unit}`
+  }));
+
+  const selectedId = searchParams?.assessmentId ?? assessments[0]?.id;
+  const selected = assessments.find((item) => item.id === selectedId);
+
+  if (!selected) {
+    return (
+      <div className="space-y-4">
+        <h1 className="text-3xl font-semibold" style={{ fontFamily: "var(--font-display)" }}>
+          Evidencias
+        </h1>
+        <p className="text-muted-foreground">Nenhum assessment encontrado.</p>
+      </div>
+    );
+  }
+
+  const responses = await prisma.assessmentTaskResponse.findMany({
+    where: { assessmentId: selected.id },
+    include: { task: { include: { practice: true } } },
+    orderBy: { taskId: "asc" }
+  });
+
+  const evidences = await prisma.evidence.findMany({
+    where: { response: { assessmentId: selected.id } },
+    include: {
+      response: { include: { task: true } }
+    },
+    orderBy: { createdAt: "desc" }
+  });
+
+  return (
+    <div className="space-y-8">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-semibold" style={{ fontFamily: "var(--font-display)" }}>
+            Evidencias
+          </h1>
+          <p className="text-muted-foreground">
+            Registre evidencias e vincule aos itens do assessment.
+          </p>
+        </div>
+        <AssessmentPicker assessments={assessmentOptions} selectedId={selected.id} basePath="/evidences" />
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Nova evidencia</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {allowEdit ? (
+            <form action={createEvidence} className="grid gap-4 md:grid-cols-2">
+              <input type="hidden" name="assessmentId" value={selected.id} />
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-sm font-medium">Tarefa</label>
+                <select
+                  name="responseId"
+                  className="h-10 w-full rounded-md border border-border bg-white/80 px-3 text-sm dark:bg-slate-900/70"
+                  required
+                >
+                  <option value="">Selecione</option>
+                  {responses.map((response) => (
+                    <option key={response.id} value={response.id}>
+                      {response.taskId} - {response.task.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Tipo</label>
+                <select
+                  name="type"
+                  className="h-10 w-full rounded-md border border-border bg-white/80 px-3 text-sm dark:bg-slate-900/70"
+                  required
+                >
+                  {evidenceTypeOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Owner</label>
+                <Input name="owner" placeholder="Responsavel" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Data</label>
+                <Input name="date" type="date" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Validade</label>
+                <Input name="validUntil" type="date" />
+              </div>
+              <div className="md:col-span-2 space-y-2">
+                <label className="text-sm font-medium">Evidencia</label>
+                <Textarea name="description" placeholder="Descricao da evidencia" required />
+              </div>
+              <div className="md:col-span-2 space-y-2">
+                <label className="text-sm font-medium">Link/ID</label>
+                <Input name="link" placeholder="URL ou identificador" />
+              </div>
+              <div className="md:col-span-2 space-y-2">
+                <label className="text-sm font-medium">Observacoes</label>
+                <Textarea name="notes" placeholder="Observacoes adicionais" />
+              </div>
+              <div className="md:col-span-2">
+                <button
+                  type="submit"
+                  className="h-10 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground"
+                >
+                  Salvar evidencia
+                </button>
+              </div>
+            </form>
+          ) : (
+            <p className="text-sm text-muted-foreground">Acesso somente leitura.</p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Evidencias registradas</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Tarefa</TableHead>
+                <TableHead>Tipo</TableHead>
+                <TableHead>Evidencia</TableHead>
+                <TableHead>Owner</TableHead>
+                <TableHead>Data</TableHead>
+                <TableHead>Validade</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {evidences.map((evidence) => (
+                <TableRow key={evidence.id}>
+                  <TableCell>
+                    <div className="text-xs text-muted-foreground">{evidence.response.taskId}</div>
+                    <div className="font-medium">{evidence.response.task.name}</div>
+                  </TableCell>
+                  <TableCell>{evidence.type}</TableCell>
+                  <TableCell>
+                    <div className="font-medium">{evidence.description}</div>
+                    {evidence.link ? (
+                      <a
+                        href={evidence.link}
+                        className="text-xs text-primary underline"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {evidence.link}
+                      </a>
+                    ) : null}
+                  </TableCell>
+                  <TableCell>{evidence.owner || "-"}</TableCell>
+                  <TableCell>{formatDate(evidence.date)}</TableCell>
+                  <TableCell>{formatDate(evidence.validUntil)}</TableCell>
+                </TableRow>
+              ))}
+              {evidences.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-sm text-muted-foreground">
+                    Nenhuma evidencia registrada.
+                  </TableCell>
+                </TableRow>
+              ) : null}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
