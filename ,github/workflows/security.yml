@@ -1,0 +1,115 @@
+name: security-actions
+
+on:
+  workflow_dispatch:
+
+jobs:
+  checkout-and-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v4
+
+      - name: zip application files 
+        run: |
+          sudo apt-get install zip -y
+          zip -r upload.zip . -i "*.js" "*.ts" "*.tsx" "*.html" "*.json" "*.vue" -x "*.git" "*.github" "*.Docker" "*.md" "*.env" "*.png" "*.jpg" "*.jpeg" "*.sql"
+
+      - name: save artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: scan-target
+          path: upload.zip     
+  veracode-sca-scan:
+    name: veracode sca scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Check out main branch
+        uses: actions/checkout@v4
+        
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.14.0'
+      
+      - name: Run SCA Scan
+        env:
+          SRCCLR_API_TOKEN: ${{ secrets.SCA_TOKEN }}
+        run: |
+          curl -sSL https://download.sourceclear.com/ci.sh | sh -s scan --update-advisor --uri-as-name
+  veracode-sast-sandbox-scan:
+    name: veracode sandbox scan
+    runs-on: ubuntu-latest
+    needs: [ checkout-and-build, veracode-sca-scan ]
+    
+    steps:
+      - name: Check out main branch
+        uses: actions/checkout@v3
+        
+      - name: get archive
+        uses: actions/download-artifact@v4 
+        with:
+          name: scan-target
+
+      - name: list artifact
+        run: |
+          pwd
+          ls -l
+
+      - name: upload and scan 
+        uses: veracode/veracode-uploadandscan-action@0.2.11
+        with:
+          appname: 'nist-assessment'
+          createprofile: true
+         #teams: 'M3Academy'
+          filepath: 'upload.zip'
+          vid: '${{ secrets.VID }}'
+          vkey: '${{ secrets.VKEY }}'
+          version: "${{ github.run_id }}"
+          scantimeout: 0
+          criticality: 'High'
+          createsandbox: true
+          sandboxname: '${{ github.ref }}'	  
+  veracode-sast-policy-pipeline-scan:
+    name: veracode policy and pipeline scan
+    runs-on: ubuntu-latest
+    needs: [ checkout-and-build, veracode-sca-scan, veracode-sast-sandbox-scan ]
+    
+    steps:
+      - name: Check out main branch
+        uses: actions/checkout@v3
+        
+      - name: get archive
+        uses: actions/download-artifact@v4 
+        with:
+          name: scan-target
+
+      - name: list artifact
+        run: |
+          pwd
+          ls -l
+
+      - name: upload and scan 
+        uses: veracode/veracode-uploadandscan-action@0.2.11
+        with:
+          appname: 'nist-assessment'
+          createprofile: true
+         #teams: 'M3Academy'
+          filepath: 'upload.zip'
+          vid: '${{ secrets.VID }}'
+          vkey: '${{ secrets.VKEY }}'
+          version: "${{ github.run_id }}"
+          scantimeout: 0
+          criticality: 'High'
+
+      - name: pipeline-scan action step
+        id: pipeline-scan
+        uses: veracode/Veracode-pipeline-scan-action@v1.0.20
+        with:
+          vid: ${{ secrets.VID }}
+          vkey: ${{ secrets.VKEY }}
+          file: "upload.zip"
+          fail_build: "true"
+          issue_details: true
