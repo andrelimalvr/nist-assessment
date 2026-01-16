@@ -1,20 +1,26 @@
-﻿import { getServerSession } from "next-auth";
+import Link from "next/link";
+import { getServerSession } from "next-auth";
 import { Role } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { createUser } from "@/app/(app)/users/actions";
+import CreateUserForm from "@/components/users/create-user-form";
+import DeleteUserButton from "@/components/users/delete-user-button";
 
 export default async function UsersPage() {
   const session = await getServerSession(authOptions);
   const isAdmin = session?.user?.role === Role.ADMIN;
 
-  const users = await prisma.user.findMany({
-    orderBy: { createdAt: "desc" }
-  });
+  const [organizations, users] = await Promise.all([
+    prisma.organization.findMany({ where: { deletedAt: null }, orderBy: { name: "asc" } }),
+    prisma.user.findMany({
+      where: { deletedAt: null },
+      include: { userOrganizations: { include: { organization: true } } },
+      orderBy: { createdAt: "desc" }
+    })
+  ]);
 
   if (!isAdmin) {
     return (
@@ -41,35 +47,7 @@ export default async function UsersPage() {
           <CardTitle>Novo usuario</CardTitle>
         </CardHeader>
         <CardContent>
-          <form action={createUser} className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Nome</label>
-              <Input name="name" placeholder="Nome completo" required />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Email</label>
-              <Input name="email" type="email" placeholder="usuario@empresa.com" required />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Senha</label>
-              <Input name="password" type="password" placeholder="Minimo 6 caracteres" required />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Role</label>
-              <select
-                name="role"
-                className="h-10 w-full rounded-md border border-border bg-white/80 px-3 text-sm dark:bg-slate-900/70"
-                required
-              >
-                <option value={Role.ADMIN}>Admin</option>
-                <option value={Role.ASSESSOR}>Assessor</option>
-                <option value={Role.VIEWER}>Viewer</option>
-              </select>
-            </div>
-            <div className="md:col-span-2">
-              <Button type="submit">Criar usuario</Button>
-            </div>
-          </form>
+          <CreateUserForm organizations={organizations} />
         </CardContent>
       </Card>
 
@@ -84,6 +62,8 @@ export default async function UsersPage() {
                 <TableHead>Nome</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
+                <TableHead>Organizacoes</TableHead>
+                <TableHead>Acoes</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -92,11 +72,31 @@ export default async function UsersPage() {
                   <TableCell className="font-semibold">{user.name}</TableCell>
                   <TableCell>{user.email}</TableCell>
                   <TableCell>{user.role}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {user.userOrganizations.length > 0
+                      ? user.userOrganizations.map((item) => item.organization.name).join(", ")
+                      : user.role === Role.ADMIN
+                        ? "Todas"
+                        : "-"}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/users/${user.id}`}>Editar</Link>
+                      </Button>
+                      <DeleteUserButton
+                        userId={user.id}
+                        userName={user.name}
+                        userEmail={user.email}
+                        currentUserId={session?.user?.id}
+                      />
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))}
               {users.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={3} className="text-sm text-muted-foreground">
+                  <TableCell colSpan={5} className="text-sm text-muted-foreground">
                     Nenhum usuario cadastrado.
                   </TableCell>
                 </TableRow>

@@ -2,11 +2,13 @@ import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import OktaProvider from "next-auth/providers/okta";
 import AzureADProvider from "next-auth/providers/azure-ad";
-import OAuthProvider from "next-auth/providers/oauth";
-import { Role } from "@prisma/client";
+import type { OAuthConfig } from "next-auth/providers";
+import { AuditAction, Role } from "@prisma/client";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { getAuthConfig } from "@/lib/auth-config";
+import { logAuditEvent } from "@/lib/audit/log";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
@@ -33,7 +35,7 @@ const azureAdConfig =
       }
     : null;
 
-const oidcConfig =
+const oidcConfig: OAuthConfig<Record<string, unknown>> | null =
   process.env.OIDC_CLIENT_ID && process.env.OIDC_CLIENT_SECRET && process.env.OIDC_ISSUER
     ? {
         id: "oidc",
@@ -68,8 +70,8 @@ const providers = [
         return null;
       }
 
-      const user = await prisma.user.findUnique({
-        where: { email: parsed.data.email }
+      const user = await prisma.user.findFirst({
+        where: { email: parsed.data.email, deletedAt: null }
       });
 
       if (!user) {
@@ -85,7 +87,9 @@ const providers = [
         id: user.id,
         name: user.name,
         email: user.email,
-        role: user.role
+        role: user.role,
+        mustChangePassword: user.mustChangePassword,
+        passwordChangedAt: user.passwordChangedAt
       };
     }
   })
@@ -102,7 +106,7 @@ if (azureAdConfig) {
 }
 
 if (oidcConfig) {
-  providers.push(OAuthProvider(oidcConfig));
+  providers.push(oidcConfig);
 }
 
 export const authOptions: NextAuthOptions = {
@@ -114,34 +118,86 @@ export const authOptions: NextAuthOptions = {
   },
   providers,
   callbacks: {
-    signIn({ user, account }) {
-      if (account && account.provider !== "credentials") {
-        return Boolean(user?.email);
+    async signIn({ user, account }) {
+      const config = await getAuthConfig();
+      const isCredentials = account?.provider ? account.provider === "credentials" : true;
+      const email = (user as { email?: string } | undefined)?.email ?? null;
+      const role = (user as { role?: Role } | undefined)?.role ?? null;
+
+      if (email) {
+        const existingUser = await prisma.user.findUnique({ where: { email } });
+        if (existingUser?.deletedAt) {
+          return false;
+        }
       }
+
+      if (!isCredentials) {
+        if (!config.ssoEnabled) {
+          return false;
+        }
+
+        if (config.domainAllowList.length > 0 && email) {
+          const domain = email.split("@")[1]?.toLowerCase();
+          const allowed = config.domainAllowList.some(
+            (item) => item.toLowerCase() === domain
+          );
+          if (!allowed) {
+            return false;
+          }
+        }
+
+        return Boolean(email);
+      }
+
+      if (!config.allowPasswordLogin || config.enforceSso) {
+        return role === Role.ADMIN;
+      }
+
       return true;
     },
-    async jwt({ token, user, account }) {
+    async jwt({ token, user, account, trigger, session }) {
       if (user) {
         token.role = (user as { role?: string }).role;
+        token.mustChangePassword = (user as { mustChangePassword?: boolean }).mustChangePassword ?? false;
+        token.passwordChangedAt =
+          (user as { passwordChangedAt?: Date | null }).passwordChangedAt?.toISOString?.() ?? null;
+      }
+
+      if (trigger === "update" && session) {
+        const nextMustChange = (session as { mustChangePassword?: boolean }).mustChangePassword;
+        if (typeof nextMustChange === "boolean") {
+          token.mustChangePassword = nextMustChange;
+        }
       }
 
       if (account && account.provider !== "credentials") {
         const email = token.email ?? (user as { email?: string } | undefined)?.email;
         if (email) {
+          const existingUser = await prisma.user.findUnique({ where: { email } });
+          if (existingUser?.deletedAt) {
+            return token;
+          }
+
           const dbUser = await prisma.user.upsert({
             where: { email },
             update: {
-              name: (user as { name?: string } | undefined)?.name ?? email
+              name: (user as { name?: string } | undefined)?.name ?? email,
+              mustChangePassword: false
             },
             create: {
               name: (user as { name?: string } | undefined)?.name ?? email,
               email,
               passwordHash: ssoPasswordHash,
-              role: Role.VIEWER
+              role: Role.VIEWER,
+              mustChangePassword: false
             }
           });
           token.sub = dbUser.id;
           token.role = dbUser.role;
+          token.mustChangePassword = dbUser.mustChangePassword;
+          token.passwordChangedAt = dbUser.passwordChangedAt
+            ? dbUser.passwordChangedAt.toISOString()
+            : null;
         } else if (!token.role) {
           token.role = Role.VIEWER;
         }
@@ -152,8 +208,42 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         session.user.role = (token.role as string) ?? Role.VIEWER;
         session.user.id = token.sub ?? "";
+        session.user.mustChangePassword = token.mustChangePassword ?? false;
       }
       return session;
+    }
+  },
+  events: {
+    async signIn({ user, account }) {
+      const email = (user as { email?: string } | undefined)?.email ?? null;
+      const dbUser = email ? await prisma.user.findUnique({ where: { email } }) : null;
+      await logAuditEvent({
+        action: AuditAction.LOGIN,
+        entityType: "Auth",
+        entityId: dbUser?.id ?? null,
+        actor: {
+          id: dbUser?.id ?? null,
+          email: email ?? null,
+          role: dbUser?.role ?? null
+        },
+        metadata: { provider: account?.provider ?? null },
+        requestContext: {}
+      });
+    },
+    async signOut({ token, session }) {
+      const email = session?.user?.email ?? (token?.email as string | undefined) ?? null;
+      const dbUser = email ? await prisma.user.findUnique({ where: { email } }) : null;
+      await logAuditEvent({
+        action: AuditAction.LOGOUT,
+        entityType: "Auth",
+        entityId: dbUser?.id ?? null,
+        actor: {
+          id: dbUser?.id ?? null,
+          email: email ?? null,
+          role: dbUser?.role ?? null
+        },
+        requestContext: {}
+      });
     }
   }
 };

@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import * as xlsx from "xlsx";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/rbac";
+import { ensureOrganizationAccess } from "@/lib/tenant";
+import { formatEvidenceLinks, isApplicable, MAX_MATURITY_LEVEL, statusLabels } from "@/lib/ssdf";
+import { AuditAction, SsdfStatus } from "@prisma/client";
+import { logAuditEvent } from "@/lib/audit/log";
+import { getRequestContext } from "@/lib/audit/request";
 
 const formats = ["xlsx", "csv", "json", "tsv"] as const;
 
@@ -60,8 +65,8 @@ export async function GET(
     ? (formatParam as ExportFormat)
     : "xlsx";
 
-  const assessment = await prisma.assessment.findUnique({
-    where: { id: params.id },
+  const assessment = await prisma.assessment.findFirst({
+    where: { id: params.id, deletedAt: null },
     include: { organization: true }
   });
 
@@ -69,62 +74,68 @@ export async function GET(
     return NextResponse.json({ error: "Assessment not found" }, { status: 404 });
   }
 
-  const responses = await prisma.assessmentTaskResponse.findMany({
+  const hasAccess = await ensureOrganizationAccess(session, assessment.organizationId);
+  if (!hasAccess) {
+    return NextResponse.json({ error: "Sem acesso a organizacao" }, { status: 403 });
+  }
+
+  const responses = await prisma.assessmentSsdfTaskResult.findMany({
     where: { assessmentId: assessment.id },
     include: {
-      task: {
+      ssdfTask: {
         include: {
           practice: { include: { group: true } }
         }
       }
     },
-    orderBy: { taskId: "asc" }
+    orderBy: { ssdfTaskId: "asc" }
   });
 
   const evidences = await prisma.evidence.findMany({
-    where: { response: { assessmentId: assessment.id } },
-    include: { response: { include: { task: true } } },
+    where: { ssdfResult: { assessmentId: assessment.id } },
+    include: { ssdfResult: { include: { ssdfTask: true } } },
     orderBy: { createdAt: "desc" }
   });
 
   const detailedRows = responses.map((response) => {
-    const gap = response.target - response.maturity;
+    const gap = response.targetLevel - response.maturityLevel;
     const priority = gap * response.weight;
-    const progressWeighted = (response.maturity / 5) * response.weight;
+    const progressWeighted =
+      (response.maturityLevel / MAX_MATURITY_LEVEL) * response.weight;
 
     return {
       Empresa: assessment.organization.name,
       "Unidade/Area": assessment.unit,
       Escopo: assessment.scope,
-      Grupo: response.task.practice.group.id,
-      "Grupo Nome": response.task.practice.group.name,
-      "Pratica ID": response.task.practice.id,
-      Pratica: response.task.practice.name,
-      "Tarefa ID": response.task.id,
-      Tarefa: response.task.name,
-      "Exemplos (NIST)": response.task.examples ?? "",
-      "Referencias (NIST)": response.task.references ?? "",
-      Aplicavel: response.applicable ? "Sim" : "Nao",
-      Status: response.status,
-      Maturidade: response.maturity,
-      Alvo: response.target,
+      Grupo: response.ssdfTask.practice.group.id,
+      "Grupo Nome": response.ssdfTask.practice.group.name,
+      "Pratica ID": response.ssdfTask.practice.id,
+      Pratica: response.ssdfTask.practice.name,
+      "Tarefa ID": response.ssdfTask.id,
+      Tarefa: response.ssdfTask.name,
+      "Exemplos (NIST)": response.ssdfTask.examples ?? "",
+      "Referencias (NIST)": response.ssdfTask.references ?? "",
+      Aplicavel: isApplicable(response.status) ? "Sim" : "Nao",
+      Status: statusLabels[response.status] ?? response.status,
+      Maturidade: response.maturityLevel,
+      Alvo: response.targetLevel,
       Gap: gap,
       Peso: response.weight,
       Prioridade: priority,
       "Evidencias / links": response.evidenceText ?? "",
-      "Links adicionais": response.evidenceLinks ?? "",
+      "Links adicionais": formatEvidenceLinks(response.evidenceLinks),
       Responsavel: response.owner ?? "",
       "Area/Time": response.team ?? "",
       Prazo: isoDate(response.dueDate),
       "Ultima revisao": isoDate(response.lastReview),
-      Observacoes: response.notes ?? "",
+      Observacoes: response.comments ?? "",
       "Progresso ponderado": Number(progressWeighted.toFixed(3))
     };
   });
 
   const evidenceRows = evidences.map((evidence) => ({
-    "Tarefa ID": evidence.response.taskId,
-    Tarefa: evidence.response.task.name,
+    "Tarefa ID": evidence.ssdfResult.ssdfTask.id,
+    Tarefa: evidence.ssdfResult.ssdfTask.name,
     Tipo: evidence.type,
     Evidencia: evidence.description,
     "Link/ID": evidence.link ?? "",
@@ -134,31 +145,35 @@ export async function GET(
     Observacoes: evidence.notes ?? ""
   }));
 
-  const applicableResponses = responses.filter((response) => response.applicable);
+  const applicableResponses = responses.filter((response) => isApplicable(response.status));
   const applicableCount = applicableResponses.length;
   const implementedCount = applicableResponses.filter(
-    (response) => response.status === "IMPLEMENTADO"
+    (response) => response.status === SsdfStatus.IMPLEMENTED
   ).length;
   const weightSum = applicableResponses.reduce((sum, response) => sum + response.weight, 0);
   const weightedProgress = applicableResponses.reduce(
-    (sum, response) => sum + (response.maturity / 5) * response.weight,
+    (sum, response) =>
+      sum + (response.maturityLevel / MAX_MATURITY_LEVEL) * response.weight,
     0
   );
   const score = weightSum > 0 ? weightedProgress / weightSum : 0;
   const avgMaturity =
     applicableCount > 0
-      ? applicableResponses.reduce((sum, response) => sum + response.maturity, 0) /
+      ? applicableResponses.reduce((sum, response) => sum + response.maturityLevel, 0) /
         applicableCount
       : 0;
   const avgTarget =
     applicableCount > 0
-      ? applicableResponses.reduce((sum, response) => sum + response.target, 0) / applicableCount
+      ? applicableResponses.reduce((sum, response) => sum + response.targetLevel, 0) /
+        applicableCount
       : 0;
 
   const executiveSummary = [
     { Indicador: "Empresa", Valor: assessment.organization.name },
     { Indicador: "Unidade/Area", Valor: assessment.unit },
     { Indicador: "Escopo", Valor: assessment.scope },
+    { Indicador: "Assessment", Valor: assessment.name },
+    { Indicador: "DG", Valor: assessment.dgLevel },
     { Indicador: "Responsavel", Valor: assessment.assessmentOwner },
     { Indicador: "Inicio", Valor: isoDate(assessment.startDate) },
     { Indicador: "Revisao", Valor: isoDate(assessment.reviewDate) },
@@ -188,7 +203,7 @@ export async function GET(
   >();
 
   for (const response of responses) {
-    const group = response.task.practice.group;
+    const group = response.ssdfTask.practice.group;
     const entry = groupMap.get(group.id) ?? {
       groupId: group.id,
       groupName: group.name,
@@ -199,13 +214,14 @@ export async function GET(
       weightedProgress: 0
     };
     entry.total += 1;
-    if (response.applicable) {
+    if (isApplicable(response.status)) {
       entry.applicable += 1;
-      if (response.status === "IMPLEMENTADO") {
+      if (response.status === SsdfStatus.IMPLEMENTED) {
         entry.implemented += 1;
       }
       entry.weightSum += response.weight;
-      entry.weightedProgress += (response.maturity / 5) * response.weight;
+      entry.weightedProgress +=
+        (response.maturityLevel / MAX_MATURITY_LEVEL) * response.weight;
     }
     groupMap.set(group.id, entry);
   }
@@ -257,7 +273,7 @@ export async function GET(
   >();
 
   for (const response of responses) {
-    const practice = response.task.practice;
+    const practice = response.ssdfTask.practice;
     const entry = practiceMap.get(practice.id) ?? {
       practiceId: practice.id,
       practiceName: practice.name,
@@ -269,13 +285,14 @@ export async function GET(
       weightedProgress: 0
     };
     entry.total += 1;
-    if (response.applicable) {
+    if (isApplicable(response.status)) {
       entry.applicable += 1;
-      if (response.status === "IMPLEMENTADO") {
+      if (response.status === SsdfStatus.IMPLEMENTED) {
         entry.implemented += 1;
       }
       entry.weightSum += response.weight;
-      entry.weightedProgress += (response.maturity / 5) * response.weight;
+      entry.weightedProgress +=
+        (response.maturityLevel / MAX_MATURITY_LEVEL) * response.weight;
     }
     practiceMap.set(practice.id, entry);
   }
@@ -298,25 +315,30 @@ export async function GET(
       };
     });
 
-  const statusOrder = ["NAO_INICIADO", "EM_ANDAMENTO", "IMPLEMENTADO", "NA"];
+  const statusOrder = [
+    SsdfStatus.NOT_STARTED,
+    SsdfStatus.IN_PROGRESS,
+    SsdfStatus.IMPLEMENTED,
+    SsdfStatus.NOT_APPLICABLE
+  ];
   const statusSummary = statusOrder.map((status) => ({
-    Status: status,
+    Status: statusLabels[status] ?? status,
     "Contagem aplicaveis": applicableResponses.filter((response) => response.status === status)
       .length
   }));
 
   const roadmapTop = applicableResponses
     .map((response) => {
-      const gap = response.target - response.maturity;
+      const gap = response.targetLevel - response.maturityLevel;
       return {
         Prioridade: gap * response.weight,
-        Grupo: response.task.practice.group.id,
-        "Pratica ID": response.task.practice.id,
-        "Tarefa ID": response.task.id,
-        Tarefa: response.task.name,
+        Grupo: response.ssdfTask.practice.group.id,
+        "Pratica ID": response.ssdfTask.practice.id,
+        "Tarefa ID": response.ssdfTask.id,
+        Tarefa: response.ssdfTask.name,
         Gap: gap,
         Peso: response.weight,
-        Status: response.status,
+        Status: statusLabels[response.status] ?? response.status,
         Responsavel: response.owner ?? "",
         "Area/Time": response.team ?? ""
       };
@@ -328,15 +350,27 @@ export async function GET(
     `ssdf_assessment_${assessment.organization.name}_${assessment.unit}_${assessment.id}`
   );
 
+  await logAuditEvent({
+    action: AuditAction.EXPORT,
+    entityType: "Assessment",
+    entityId: assessment.id,
+    organizationId: assessment.organizationId,
+    actor: { id: session.user.id, email: session.user.email, role: session.user.role },
+    requestContext: { ...getRequestContext(), route: new URL(request.url).pathname },
+    metadata: { format }
+  });
+
   if (format === "json") {
     return NextResponse.json(
       {
         assessment: {
           id: assessment.id,
           organization: assessment.organization.name,
+          name: assessment.name,
           unit: assessment.unit,
           scope: assessment.scope,
           assessmentOwner: assessment.assessmentOwner,
+          dgLevel: assessment.dgLevel,
           startDate: isoDate(assessment.startDate),
           reviewDate: isoDate(assessment.reviewDate)
         },

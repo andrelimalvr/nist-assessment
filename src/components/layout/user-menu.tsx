@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { ChevronDown } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -25,6 +26,9 @@ export default function UserMenu({ name, role, email }: UserMenuProps) {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem className="text-xs text-muted-foreground">{email}</DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/conta">Conta</Link>
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/login" })}>
           Sair
         </DropdownMenuItem>

@@ -1,8 +1,12 @@
 ﻿import AssessmentPicker from "@/components/assessment/assessment-picker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import RoadmapTable from "@/components/roadmap/roadmap-table";
 import { prisma } from "@/lib/prisma";
 import { statusLabels } from "@/lib/ssdf";
+import { getServerSession } from "next-auth";
+import { Role, SsdfStatus } from "@prisma/client";
+import { authOptions } from "@/lib/auth";
+import { getAccessibleOrganizationIds } from "@/lib/tenant";
 
 export default async function RoadmapPage({
   searchParams
@@ -14,14 +18,22 @@ export default async function RoadmapPage({
     status?: string;
   };
 }) {
+  const session = await getServerSession(authOptions);
+  const accessibleOrgIds = await getAccessibleOrganizationIds(session);
+  const assessmentFilter =
+    session?.user?.role === Role.ADMIN || accessibleOrgIds === null
+      ? { organization: { is: { deletedAt: null } }, deletedAt: null }
+      : { organizationId: { in: accessibleOrgIds }, deletedAt: null };
+
   const assessments = await prisma.assessment.findMany({
+    where: assessmentFilter,
     include: { organization: true },
     orderBy: { createdAt: "desc" }
   });
 
   const assessmentOptions = assessments.map((assessment) => ({
     id: assessment.id,
-    label: `${assessment.organization.name} - ${assessment.unit}`
+    label: `${assessment.organization.name} - ${assessment.name} - ${assessment.unit}`
   }));
 
   const selectedId = searchParams?.assessmentId ?? assessments[0]?.id;
@@ -40,7 +52,7 @@ export default async function RoadmapPage({
 
   const where: any = {
     assessmentId: selected.id,
-    applicable: true
+    status: { not: SsdfStatus.NOT_APPLICABLE }
   };
 
   if (searchParams?.owner) {
@@ -52,13 +64,13 @@ export default async function RoadmapPage({
   }
 
   if (searchParams?.group) {
-    where.task = { practice: { groupId: searchParams.group } };
+    where.ssdfTask = { practice: { groupId: searchParams.group } };
   }
 
-  const responses = await prisma.assessmentTaskResponse.findMany({
+  const responses = await prisma.assessmentSsdfTaskResult.findMany({
     where,
     include: {
-      task: {
+      ssdfTask: {
         include: {
           practice: { include: { group: true } }
         }
@@ -66,26 +78,24 @@ export default async function RoadmapPage({
     }
   });
 
-  const items = responses
-    .map((response) => {
-      const gap = response.target - response.maturity;
-      const priority = gap * response.weight;
-      return {
-        id: response.id,
-        groupId: response.task.practice.group.id,
-        taskId: response.taskId,
-        taskName: response.task.name,
-        status: response.status,
-        gap,
-        priority,
-        maturity: response.maturity,
-        target: response.target,
-        weight: response.weight,
-        owner: response.owner,
-        team: response.team
-      };
-    })
-    .sort((a, b) => b.priority - a.priority);
+  const items = responses.map((response) => {
+    const gap = response.targetLevel - response.maturityLevel;
+    const priority = gap * response.weight;
+    return {
+      id: response.id,
+      groupId: response.ssdfTask.practice.group.id,
+      taskId: response.ssdfTask.id,
+      taskName: response.ssdfTask.name,
+      statusLabel: statusLabels[response.status],
+      gap,
+      priority,
+      maturity: response.maturityLevel,
+      target: response.targetLevel,
+      weight: response.weight,
+      owner: response.owner,
+      team: response.team
+    };
+  });
 
   const groups = await prisma.ssdfGroup.findMany({ orderBy: { id: "asc" } });
 
@@ -134,10 +144,10 @@ export default async function RoadmapPage({
               className="h-10 rounded-md border border-border bg-white/80 px-3 text-sm dark:bg-slate-900/70"
             >
               <option value="">Status</option>
-              <option value="NAO_INICIADO">Nao iniciado</option>
-              <option value="EM_ANDAMENTO">Em andamento</option>
-              <option value="IMPLEMENTADO">Implementado</option>
-              <option value="NA">N/A</option>
+              <option value={SsdfStatus.NOT_STARTED}>Nao iniciado</option>
+              <option value={SsdfStatus.IN_PROGRESS}>Em andamento</option>
+              <option value={SsdfStatus.IMPLEMENTED}>Implementado</option>
+              <option value={SsdfStatus.NOT_APPLICABLE}>Nao aplicavel</option>
             </select>
             <button
               type="submit"
@@ -154,42 +164,7 @@ export default async function RoadmapPage({
           <CardTitle>Lista priorizada</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Prioridade</TableHead>
-                <TableHead>Grupo</TableHead>
-                <TableHead>Tarefa</TableHead>
-                <TableHead>Gap</TableHead>
-                <TableHead>Peso</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Responsavel</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {items.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell className="font-semibold">{item.priority}</TableCell>
-                  <TableCell>{item.groupId}</TableCell>
-                  <TableCell>
-                    <div className="text-xs text-muted-foreground">{item.taskId}</div>
-                    <div className="font-medium">{item.taskName}</div>
-                  </TableCell>
-                  <TableCell>{item.gap}</TableCell>
-                  <TableCell>{item.weight}</TableCell>
-                  <TableCell>{statusLabels[item.status]}</TableCell>
-                  <TableCell>{item.owner || "-"}</TableCell>
-                </TableRow>
-              ))}
-              {items.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-sm text-muted-foreground">
-                    Nenhum item encontrado.
-                  </TableCell>
-                </TableRow>
-              ) : null}
-            </TableBody>
-          </Table>
+          <RoadmapTable rows={items} />
         </CardContent>
       </Card>
     </div>

@@ -4,6 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatNumber, formatPercent } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { getServerSession } from "next-auth";
+import { Role, SsdfStatus } from "@prisma/client";
+import { authOptions } from "@/lib/auth";
+import { getAccessibleOrganizationIds } from "@/lib/tenant";
+import { isApplicable, MAX_MATURITY_LEVEL } from "@/lib/ssdf";
 
 const GROUP_ORDER = ["PO", "PS", "PW", "RV"] as const;
 
@@ -22,14 +27,22 @@ export default async function DashboardPage({
 }: {
   searchParams?: { assessmentId?: string };
 }) {
+  const session = await getServerSession(authOptions);
+  const accessibleOrgIds = await getAccessibleOrganizationIds(session);
+  const assessmentFilter =
+    session?.user?.role === Role.ADMIN || accessibleOrgIds === null
+      ? { organization: { is: { deletedAt: null } }, deletedAt: null }
+      : { organizationId: { in: accessibleOrgIds }, deletedAt: null };
+
   const assessments = await prisma.assessment.findMany({
+    where: assessmentFilter,
     include: { organization: true },
     orderBy: { createdAt: "desc" }
   });
 
   const assessmentOptions = assessments.map((assessment) => ({
     id: assessment.id,
-    label: `${assessment.organization.name} - ${assessment.unit}`
+    label: `${assessment.organization.name} - ${assessment.name} - ${assessment.unit}`
   }));
 
   const selectedId = searchParams?.assessmentId ?? assessments[0]?.id;
@@ -46,10 +59,10 @@ export default async function DashboardPage({
     );
   }
 
-  const responses = await prisma.assessmentTaskResponse.findMany({
+  const responses = await prisma.assessmentSsdfTaskResult.findMany({
     where: { assessmentId: selected.id },
     include: {
-      task: {
+      ssdfTask: {
         include: {
           practice: { include: { group: true } }
         }
@@ -60,7 +73,7 @@ export default async function DashboardPage({
   const statsMap = new Map<string, GroupStats>();
 
   for (const response of responses) {
-    const group = response.task.practice.group;
+    const group = response.ssdfTask.practice.group;
     const entry = statsMap.get(group.id) ?? {
       id: group.id,
       name: group.name,
@@ -72,12 +85,12 @@ export default async function DashboardPage({
     };
 
     entry.total += 1;
-    if (response.applicable) {
+    if (isApplicable(response.status)) {
       entry.applicable += 1;
-      if (response.status === "IMPLEMENTADO") {
+      if (response.status === SsdfStatus.IMPLEMENTED) {
         entry.implemented += 1;
       }
-      entry.weightedProgress += (response.maturity / 5) * response.weight;
+      entry.weightedProgress += (response.maturityLevel / MAX_MATURITY_LEVEL) * response.weight;
       entry.weightSum += response.weight;
     }
 

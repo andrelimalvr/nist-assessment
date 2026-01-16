@@ -2,14 +2,16 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import EvidenceTable from "@/components/evidences/evidence-table";
 import { getServerSession } from "next-auth";
+import { Role } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { canEdit } from "@/lib/rbac";
 import { prisma } from "@/lib/prisma";
 import { evidenceTypeOptions } from "@/lib/ssdf";
 import { createEvidence } from "@/app/(app)/evidences/actions";
 import { formatDate } from "@/lib/format";
+import { getAccessibleOrganizationIds } from "@/lib/tenant";
 
 export default async function EvidencesPage({
   searchParams
@@ -19,14 +21,21 @@ export default async function EvidencesPage({
   const session = await getServerSession(authOptions);
   const allowEdit = canEdit(session?.user?.role);
 
+  const accessibleOrgIds = await getAccessibleOrganizationIds(session);
+  const assessmentFilter =
+    session?.user?.role === Role.ADMIN || accessibleOrgIds === null
+      ? { organization: { is: { deletedAt: null } }, deletedAt: null }
+      : { organizationId: { in: accessibleOrgIds }, deletedAt: null };
+
   const assessments = await prisma.assessment.findMany({
+    where: assessmentFilter,
     include: { organization: true },
     orderBy: { createdAt: "desc" }
   });
 
   const assessmentOptions = assessments.map((assessment) => ({
     id: assessment.id,
-    label: `${assessment.organization.name} - ${assessment.unit}`
+    label: `${assessment.organization.name} - ${assessment.name} - ${assessment.unit}`
   }));
 
   const selectedId = searchParams?.assessmentId ?? assessments[0]?.id;
@@ -43,19 +52,33 @@ export default async function EvidencesPage({
     );
   }
 
-  const responses = await prisma.assessmentTaskResponse.findMany({
+  const responses = await prisma.assessmentSsdfTaskResult.findMany({
     where: { assessmentId: selected.id },
-    include: { task: { include: { practice: true } } },
-    orderBy: { taskId: "asc" }
+    include: { ssdfTask: { include: { practice: true } } },
+    orderBy: { ssdfTaskId: "asc" }
   });
 
   const evidences = await prisma.evidence.findMany({
-    where: { response: { assessmentId: selected.id } },
+    where: { ssdfResult: { assessmentId: selected.id } },
     include: {
-      response: { include: { task: true } }
+      ssdfResult: { include: { ssdfTask: true } }
     },
     orderBy: { createdAt: "desc" }
   });
+
+  const evidenceRows = evidences.map((evidence) => ({
+    id: evidence.id,
+    taskId: evidence.ssdfResult.ssdfTask.id,
+    taskName: evidence.ssdfResult.ssdfTask.name,
+    type: evidence.type,
+    description: evidence.description,
+    link: evidence.link,
+    owner: evidence.owner,
+    date: evidence.date ? evidence.date.toISOString() : null,
+    validUntil: evidence.validUntil ? evidence.validUntil.toISOString() : null,
+    dateValue: evidence.date ? evidence.date.getTime() : 0,
+    validUntilValue: evidence.validUntil ? evidence.validUntil.getTime() : 0
+  }));
 
   return (
     <div className="space-y-8">
@@ -82,14 +105,14 @@ export default async function EvidencesPage({
               <div className="space-y-2 md:col-span-2">
                 <label className="text-sm font-medium">Tarefa</label>
                 <select
-                  name="responseId"
+                  name="ssdfResultId"
                   className="h-10 w-full rounded-md border border-border bg-white/80 px-3 text-sm dark:bg-slate-900/70"
                   required
                 >
                   <option value="">Selecione</option>
                   {responses.map((response) => (
                     <option key={response.id} value={response.id}>
-                      {response.taskId} - {response.task.name}
+                      {response.ssdfTask.id} - {response.ssdfTask.name}
                     </option>
                   ))}
                 </select>
@@ -152,52 +175,7 @@ export default async function EvidencesPage({
           <CardTitle>Evidencias registradas</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Tarefa</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Evidencia</TableHead>
-                <TableHead>Owner</TableHead>
-                <TableHead>Data</TableHead>
-                <TableHead>Validade</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {evidences.map((evidence) => (
-                <TableRow key={evidence.id}>
-                  <TableCell>
-                    <div className="text-xs text-muted-foreground">{evidence.response.taskId}</div>
-                    <div className="font-medium">{evidence.response.task.name}</div>
-                  </TableCell>
-                  <TableCell>{evidence.type}</TableCell>
-                  <TableCell>
-                    <div className="font-medium">{evidence.description}</div>
-                    {evidence.link ? (
-                      <a
-                        href={evidence.link}
-                        className="text-xs text-primary underline"
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        {evidence.link}
-                      </a>
-                    ) : null}
-                  </TableCell>
-                  <TableCell>{evidence.owner || "-"}</TableCell>
-                  <TableCell>{formatDate(evidence.date)}</TableCell>
-                  <TableCell>{formatDate(evidence.validUntil)}</TableCell>
-                </TableRow>
-              ))}
-              {evidences.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-sm text-muted-foreground">
-                    Nenhuma evidencia registrada.
-                  </TableCell>
-                </TableRow>
-              ) : null}
-            </TableBody>
-          </Table>
+          <EvidenceTable rows={evidenceRows} />
         </CardContent>
       </Card>
     </div>

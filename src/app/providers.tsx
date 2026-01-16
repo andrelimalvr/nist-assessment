@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { SessionProvider } from "next-auth/react";
 import { applyTheme, resolveTheme } from "@/lib/theme";
+import { Toaster } from "@/components/ui/toaster";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   useEffect(() => {
@@ -10,5 +11,10 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     applyTheme(theme);
   }, []);
 
-  return <SessionProvider>{children}</SessionProvider>;
+  return (
+    <SessionProvider>
+      {children}
+      <Toaster />
+    </SessionProvider>
+  );
 }

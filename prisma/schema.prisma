@@ -1,4 +1,4 @@
-// Prisma schema for SSDF assessment app
+// Prisma schema for SSDF + CIS assessment app
 
 generator client {
   provider = "prisma-client-js"
@@ -15,11 +15,18 @@ enum Role {
   VIEWER
 }
 
-enum TaskStatus {
-  NAO_INICIADO
-  EM_ANDAMENTO
-  IMPLEMENTADO
-  NA
+enum SsdfStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  IMPLEMENTED
+  NOT_APPLICABLE
+}
+
+enum CisStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  IMPLEMENTED
+  NOT_APPLICABLE
 }
 
 enum EvidenceType {
@@ -31,47 +38,109 @@ enum EvidenceType {
   OUTRO
 }
 
+enum MetricType {
+  QUANT
+  QUAL
+}
+
+enum MappingType {
+  DIRECT
+  PARTIAL
+  SUPPORTS
+}
+
+enum ImplementationGroup {
+  IG1
+  IG2
+  IG3
+}
+
+enum DgLevel {
+  DG1
+  DG2
+  DG3
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  EXPORT
+  OTHER
+}
+
 model User {
   id           String      @id @default(cuid()) @map("id")
   name         String      @map("name")
   email        String      @unique @map("email")
   passwordHash String      @map("password_hash")
   role         Role        @default(VIEWER) @map("role")
+  mustChangePassword Boolean @default(true) @map("must_change_password")
+  passwordChangedAt DateTime? @map("password_changed_at")
+  deletedAt    DateTime?   @map("deleted_at")
   createdAt    DateTime    @default(now()) @map("created_at")
   updatedAt    DateTime    @updatedAt @map("updated_at")
   assessmentsCreated Assessment[] @relation("AssessmentCreatedBy")
+  ssdfResultsUpdated AssessmentSsdfTaskResult[] @relation("SsdfResultUpdatedBy")
+  cisResultsUpdated AssessmentCisResult[] @relation("CisResultUpdatedBy")
+  userOrganizations UserOrganization[]
   auditLogs    AuditLog[]
 
+  @@index([deletedAt])
   @@map("users")
 }
 
 model Organization {
   id        String       @id @default(cuid()) @map("id")
   name      String       @unique @map("name")
+  deletedAt DateTime?    @map("deleted_at")
+  enforceSso Boolean     @default(false) @map("enforce_sso")
+  ssoProviderKey String? @map("sso_provider_key")
   createdAt DateTime     @default(now()) @map("created_at")
   updatedAt DateTime     @updatedAt @map("updated_at")
   assessments Assessment[]
+  userOrganizations UserOrganization[]
+  auditLogs AuditLog[]
 
   @@map("organizations")
+}
+
+model UserOrganization {
+  userId         String   @map("user_id")
+  organizationId String   @map("organization_id")
+  user           User     @relation(fields: [userId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@id([userId, organizationId])
+  @@index([organizationId])
+  @@map("user_organizations")
 }
 
 model Assessment {
   id              String    @id @default(cuid()) @map("id")
   organizationId  String    @map("organization_id")
   organization    Organization @relation(fields: [organizationId], references: [id])
+  name            String    @default("Assessment") @map("name")
   unit            String    @map("unit")
   scope           String    @map("scope")
   assessmentOwner String    @map("assessment_owner")
+  dgLevel         DgLevel   @default(DG1) @map("dg_level")
   startDate       DateTime  @map("start_date")
   reviewDate      DateTime? @map("review_date")
   notes           String?   @map("notes") @db.Text
+  deletedAt       DateTime? @map("deleted_at")
   createdById     String?   @map("created_by_id")
   createdBy       User?     @relation("AssessmentCreatedBy", fields: [createdById], references: [id])
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
-  taskResponses   AssessmentTaskResponse[]
+  ssdfResults     AssessmentSsdfTaskResult[]
+  cisResults      AssessmentCisResult[]
 
   @@index([organizationId])
+  @@index([deletedAt])
   @@map("assessments")
 }
 
@@ -102,44 +171,48 @@ model SsdfTask {
   name       String     @map("name")
   examples   String?    @map("examples") @db.Text
   references String?    @map("references") @db.Text
-  responses  AssessmentTaskResponse[]
+  results    AssessmentSsdfTaskResult[]
+  mappings   SsdfCisMapping[]
 
   @@index([practiceId])
   @@map("ssdf_tasks")
 }
 
-model AssessmentTaskResponse {
-  id           String     @id @default(cuid()) @map("id")
-  assessmentId String     @map("assessment_id")
-  assessment   Assessment @relation(fields: [assessmentId], references: [id])
-  taskId       String     @map("task_id")
-  task         SsdfTask   @relation(fields: [taskId], references: [id])
-  applicable   Boolean    @default(true) @map("applicable")
-  status       TaskStatus @default(NAO_INICIADO) @map("status")
-  maturity     Int        @default(0) @map("maturity")
-  target       Int        @default(3) @map("target")
-  weight       Int        @default(3) @map("weight")
-  evidenceText String?    @map("evidence_text") @db.Text
-  evidenceLinks String?   @map("evidence_links") @db.Text
-  owner        String?    @map("owner")
-  team         String?    @map("team")
-  dueDate      DateTime?  @map("due_date")
-  lastReview   DateTime?  @map("last_review")
-  notes        String?    @map("notes") @db.Text
-  createdAt    DateTime   @default(now()) @map("created_at")
-  updatedAt    DateTime   @updatedAt @map("updated_at")
-  evidences    Evidence[]
+model AssessmentSsdfTaskResult {
+  id            String     @id @default(cuid()) @map("id")
+  assessmentId  String     @map("assessment_id")
+  assessment    Assessment @relation(fields: [assessmentId], references: [id])
+  ssdfTaskId    String     @map("ssdf_task_id")
+  ssdfTask      SsdfTask   @relation(fields: [ssdfTaskId], references: [id])
+  status        SsdfStatus @default(NOT_STARTED) @map("status")
+  maturityLevel Int        @default(0) @map("maturity_level")
+  targetLevel   Int        @default(2) @map("target_level")
+  weight        Int        @default(3) @map("weight")
+  metricValue   Float?     @map("metric_value")
+  metricType    MetricType? @map("metric_type")
+  evidenceText  String?    @map("evidence_text") @db.Text
+  evidenceLinks String[]   @default([]) @map("evidence_links")
+  owner         String?    @map("owner")
+  team          String?    @map("team")
+  dueDate       DateTime?  @map("due_date")
+  lastReview    DateTime?  @map("last_review")
+  comments      String?    @map("comments") @db.Text
+  updatedById   String?    @map("updated_by_id")
+  updatedBy     User?      @relation("SsdfResultUpdatedBy", fields: [updatedById], references: [id])
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+  evidences     Evidence[]
 
-  @@unique([assessmentId, taskId])
+  @@unique([assessmentId, ssdfTaskId])
   @@index([assessmentId, status])
-  @@index([taskId])
-  @@map("assessment_task_responses")
+  @@index([ssdfTaskId])
+  @@map("assessment_ssdf_task_results")
 }
 
 model Evidence {
   id          String     @id @default(cuid()) @map("id")
-  responseId  String     @map("response_id")
-  response    AssessmentTaskResponse @relation(fields: [responseId], references: [id])
+  ssdfResultId String    @map("ssdf_result_id")
+  ssdfResult  AssessmentSsdfTaskResult @relation(fields: [ssdfResultId], references: [id])
   description String     @map("description")
   type        EvidenceType @map("type")
   link        String?    @map("link")
@@ -150,21 +223,123 @@ model Evidence {
   createdAt   DateTime   @default(now()) @map("created_at")
   updatedAt   DateTime   @updatedAt @map("updated_at")
 
-  @@index([responseId])
+  @@index([ssdfResultId])
   @@map("evidences")
 }
 
-model AuditLog {
-  id        String   @id @default(cuid()) @map("id")
-  userId    String?  @map("user_id")
-  user      User?    @relation(fields: [userId], references: [id])
-  entity    String   @map("entity")
-  entityId  String   @map("entity_id")
-  action    String   @map("action")
-  before    Json?    @map("before")
-  after     Json?    @map("after")
-  createdAt DateTime @default(now()) @map("created_at")
+model CisControl {
+  id          String     @id @map("id")
+  name        String     @map("name")
+  description String?    @map("description") @db.Text
+  safeguards  CisSafeguard[]
+  mappings    SsdfCisMapping[]
+  cisResults  AssessmentCisResult[]
 
-  @@index([entity, entityId])
+  @@map("cis_controls")
+}
+
+model CisSafeguard {
+  id          String     @id @map("id")
+  controlId   String     @map("control_id")
+  control     CisControl @relation(fields: [controlId], references: [id])
+  name        String     @map("name")
+  description String?    @map("description") @db.Text
+  implementationGroup ImplementationGroup @map("implementation_group")
+  mappings    SsdfCisMapping[]
+  cisResults  AssessmentCisResult[]
+
+  @@index([controlId])
+  @@map("cis_safeguards")
+}
+
+model SsdfCisMapping {
+  id             String     @id @default(cuid()) @map("id")
+  ssdfTaskId     String     @map("ssdf_task_id")
+  ssdfTask       SsdfTask   @relation(fields: [ssdfTaskId], references: [id])
+  cisControlId   String?    @map("cis_control_id")
+  cisControl     CisControl? @relation(fields: [cisControlId], references: [id])
+  cisSafeguardId String?    @map("cis_safeguard_id")
+  cisSafeguard   CisSafeguard? @relation(fields: [cisSafeguardId], references: [id])
+  mappingType    MappingType @default(DIRECT) @map("mapping_type")
+  weight         Float      @default(1) @map("weight")
+  notes          String?    @map("notes") @db.Text
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
+
+  @@index([ssdfTaskId])
+  @@index([cisControlId])
+  @@index([cisSafeguardId])
+  @@unique([ssdfTaskId, cisControlId, cisSafeguardId])
+  @@map("ssdf_cis_mappings")
+}
+
+model AssessmentCisResult {
+  id                   String     @id @default(cuid()) @map("id")
+  assessmentId         String     @map("assessment_id")
+  assessment           Assessment @relation(fields: [assessmentId], references: [id])
+  cisControlId         String?    @map("cis_control_id")
+  cisControl           CisControl? @relation(fields: [cisControlId], references: [id])
+  cisSafeguardId       String?    @map("cis_safeguard_id")
+  cisSafeguard         CisSafeguard? @relation(fields: [cisSafeguardId], references: [id])
+  derivedStatus        CisStatus? @map("derived_status")
+  derivedMaturityLevel Int?       @map("derived_maturity_level")
+  derivedCoverageScore Float?     @map("derived_coverage_score")
+  derivedFromSsdf      Boolean    @default(true) @map("derived_from_ssdf")
+  derivedFromTaskIds   String[]   @default([]) @map("derived_from_task_ids")
+  manualOverride       Boolean    @default(false) @map("manual_override")
+  manualStatus         CisStatus? @map("manual_status")
+  manualMaturityLevel  Int?       @map("manual_maturity_level")
+  updatedById          String?    @map("updated_by_id")
+  updatedBy            User?      @relation("CisResultUpdatedBy", fields: [updatedById], references: [id])
+  createdAt            DateTime   @default(now()) @map("created_at")
+  updatedAt            DateTime   @updatedAt @map("updated_at")
+
+  @@index([assessmentId])
+  @@index([cisControlId])
+  @@index([cisSafeguardId])
+  @@unique([assessmentId, cisControlId, cisSafeguardId])
+  @@map("assessment_cis_results")
+}
+
+model AuditLog {
+  id            String      @id @default(uuid()) @map("id")
+  timestamp     DateTime    @default(now()) @map("created_at")
+  actorUserId   String?     @map("user_id")
+  actorUser     User?       @relation(fields: [actorUserId], references: [id])
+  actorEmail    String?     @map("actor_email")
+  actorRole     Role?       @map("actor_role")
+  organizationId String?    @map("organization_id")
+  organization  Organization? @relation(fields: [organizationId], references: [id])
+  action        AuditAction @default(OTHER) @map("action")
+  entityType    String?     @map("entity")
+  entityId      String?     @map("entity_id")
+  fieldName     String?     @map("field_name")
+  oldValue      String?     @map("old_value") @db.Text
+  newValue      String?     @map("new_value") @db.Text
+  metadata      Json?       @map("metadata")
+  success       Boolean     @default(true) @map("success")
+  errorMessage  String?     @map("error_message") @db.Text
+  requestId     String?     @map("request_id")
+  legacyBefore  Json?       @map("before")
+  legacyAfter   Json?       @map("after")
+
+  @@index([entityType, entityId])
+  @@index([organizationId])
   @@map("audit_logs")
+}
+
+model AuthConfig {
+  id                 String   @id @default(cuid()) @map("id")
+  key                String   @unique @default("default") @map("key")
+  ssoEnabled         Boolean  @default(false) @map("sso_enabled")
+  issuerUrl          String?  @map("issuer_url")
+  clientId           String?  @map("client_id")
+  scopes             String   @default("openid profile email") @map("scopes")
+  allowPasswordLogin Boolean  @default(true) @map("allow_password_login")
+  domainAllowList    String[] @default([]) @map("domain_allow_list")
+  enforceSso         Boolean  @default(false) @map("enforce_sso")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  @@map("auth_configs")
 }

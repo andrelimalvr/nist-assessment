@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { statusOptions, statusLabels } from "@/lib/ssdf";
+import { SsdfStatus } from "@prisma/client";
+import { MAX_MATURITY_LEVEL, formatEvidenceLinks, isApplicable, statusOptions, statusLabels } from "@/lib/ssdf";
 
 export type AssessmentResponseRow = {
   id: string;
@@ -18,10 +19,9 @@ export type AssessmentResponseRow = {
   groupId: string;
   examples?: string | null;
   references?: string | null;
-  applicable: boolean;
-  status: string;
-  maturity: number;
-  target: number;
+  status: SsdfStatus | string;
+  maturityLevel: number;
+  targetLevel: number;
   weight: number;
   gap: number;
   priority: number;
@@ -31,8 +31,8 @@ export type AssessmentResponseRow = {
   dueDate?: string | null;
   lastReview?: string | null;
   evidenceText?: string | null;
-  evidenceLinks?: string | null;
-  notes?: string | null;
+  evidenceLinks?: string[] | null;
+  comments?: string | null;
 };
 
 type AssessmentTableProps = {
@@ -49,8 +49,10 @@ export default function AssessmentTable({ assessmentId, responses, canEdit }: As
 
   const summary = useMemo(() => {
     const total = responses.length;
-    const applicable = responses.filter((r) => r.applicable).length;
-    const implemented = responses.filter((r) => r.applicable && r.status === "IMPLEMENTADO").length;
+    const applicable = responses.filter((r) => isApplicable(r.status)).length;
+    const implemented = responses.filter(
+      (r) => isApplicable(r.status) && r.status === SsdfStatus.IMPLEMENTED
+    ).length;
     return { total, applicable, implemented };
   }, [responses]);
 
@@ -59,11 +61,18 @@ export default function AssessmentTable({ assessmentId, responses, canEdit }: As
     if (!selected) return;
 
     const formData = new FormData(event.currentTarget);
+    const applicable = formData.get("applicable") === "true";
+    let status = String(formData.get("status") || SsdfStatus.NOT_STARTED);
+    if (!applicable) {
+      status = SsdfStatus.NOT_APPLICABLE;
+    } else if (status === SsdfStatus.NOT_APPLICABLE) {
+      status = SsdfStatus.NOT_STARTED;
+    }
+
     const payload = {
-      applicable: formData.get("applicable") === "true",
-      status: String(formData.get("status") || "NAO_INICIADO"),
-      maturity: Number(formData.get("maturity")),
-      target: Number(formData.get("target")),
+      status,
+      maturityLevel: Number(formData.get("maturityLevel")),
+      targetLevel: Number(formData.get("targetLevel")),
       weight: Number(formData.get("weight")),
       owner: String(formData.get("owner") || ""),
       team: String(formData.get("team") || ""),
@@ -71,7 +80,7 @@ export default function AssessmentTable({ assessmentId, responses, canEdit }: As
       lastReview: String(formData.get("lastReview") || ""),
       evidenceText: String(formData.get("evidenceText") || ""),
       evidenceLinks: String(formData.get("evidenceLinks") || ""),
-      notes: String(formData.get("notes") || "")
+      comments: String(formData.get("comments") || "")
     };
 
     setIsSaving(true);
@@ -132,10 +141,10 @@ export default function AssessmentTable({ assessmentId, responses, canEdit }: As
                 <div className="text-xs text-muted-foreground">{row.taskId}</div>
                 <div className="font-medium">{row.taskName}</div>
               </TableCell>
-              <TableCell>{statusLabels[row.status as keyof typeof statusLabels] ?? row.status}</TableCell>
-              <TableCell>{row.applicable ? "Sim" : "Nao"}</TableCell>
-              <TableCell>{row.maturity}</TableCell>
-              <TableCell>{row.target}</TableCell>
+              <TableCell>{statusLabels[row.status as SsdfStatus] ?? row.status}</TableCell>
+              <TableCell>{isApplicable(row.status) ? "Sim" : "Nao"}</TableCell>
+              <TableCell>{row.maturityLevel}</TableCell>
+              <TableCell>{row.targetLevel}</TableCell>
               <TableCell>{row.gap}</TableCell>
               <TableCell>{row.weight}</TableCell>
               <TableCell>{row.priority}</TableCell>
@@ -187,7 +196,7 @@ export default function AssessmentTable({ assessmentId, responses, canEdit }: As
                 <label className="text-sm font-medium">Aplicavel?</label>
                 <select
                   name="applicable"
-                  defaultValue={selected.applicable ? "true" : "false"}
+                  defaultValue={isApplicable(selected.status) ? "true" : "false"}
                   className="h-10 w-full rounded-md border border-border bg-white/80 px-3 text-sm dark:bg-slate-900/70"
                 >
                   <option value="true">Sim</option>
@@ -209,24 +218,24 @@ export default function AssessmentTable({ assessmentId, responses, canEdit }: As
                 </select>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Maturidade (0-5)</label>
+                <label className="text-sm font-medium">Maturidade (0-3)</label>
                 <Input
-                  name="maturity"
+                  name="maturityLevel"
                   type="number"
                   min={0}
-                  max={5}
-                  defaultValue={selected.maturity}
+                  max={MAX_MATURITY_LEVEL}
+                  defaultValue={selected.maturityLevel}
                   required
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Alvo (0-5)</label>
+                <label className="text-sm font-medium">Alvo (0-3)</label>
                 <Input
-                  name="target"
+                  name="targetLevel"
                   type="number"
                   min={0}
-                  max={5}
-                  defaultValue={selected.target}
+                  max={MAX_MATURITY_LEVEL}
+                  defaultValue={selected.targetLevel}
                   required
                 />
               </div>
@@ -263,11 +272,14 @@ export default function AssessmentTable({ assessmentId, responses, canEdit }: As
               </div>
               <div className="md:col-span-2 space-y-2">
                 <label className="text-sm font-medium">Links adicionais</label>
-                <Textarea name="evidenceLinks" defaultValue={selected.evidenceLinks || ""} />
+                <Textarea
+                  name="evidenceLinks"
+                  defaultValue={formatEvidenceLinks(selected.evidenceLinks)}
+                />
               </div>
               <div className="md:col-span-2 space-y-2">
                 <label className="text-sm font-medium">Observacoes</label>
-                <Textarea name="notes" defaultValue={selected.notes || ""} />
+                <Textarea name="comments" defaultValue={selected.comments || ""} />
               </div>
               {error ? (
                 <p className="md:col-span-2 text-sm text-red-600">{error}</p>

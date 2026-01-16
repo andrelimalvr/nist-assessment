@@ -12,16 +12,23 @@ type ProviderInfo = {
 
 export default function SsoButtons() {
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
+  const [ssoEnabled, setSsoEnabled] = useState(false);
 
   useEffect(() => {
-    getProviders().then((result) => {
+    Promise.all([
+      getProviders(),
+      fetch("/api/auth/sso-config").then((response) => response.json()).catch(() => null)
+    ]).then(([result, config]) => {
+      if (config?.ssoEnabled) {
+        setSsoEnabled(true);
+      }
       if (!result) return;
       const list = Object.values(result).filter((provider) => provider.id !== "credentials");
       setProviders(list as ProviderInfo[]);
     });
   }, []);
 
-  if (providers.length === 0) {
+  if (!ssoEnabled || providers.length === 0) {
     return null;
   }
 

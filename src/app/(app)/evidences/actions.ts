@@ -1,13 +1,17 @@
 ﻿"use server";
 
-import { EvidenceType, Role } from "@prisma/client";
+import { AuditAction, EvidenceType, Role } from "@prisma/client";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/rbac";
+import { ensureOrganizationAccess } from "@/lib/tenant";
+import { getRequestContext } from "@/lib/audit/request";
+import { logAuditEvent } from "@/lib/audit/log";
 
 const evidenceSchema = z.object({
-  responseId: z.string().min(1),
+  assessmentId: z.string().min(1),
+  ssdfResultId: z.string().min(1),
   description: z.string().min(1),
   type: z.nativeEnum(EvidenceType),
   link: z.string().optional(),
@@ -24,7 +28,8 @@ export async function createEvidence(formData: FormData) {
   }
 
   const parsed = evidenceSchema.safeParse({
-    responseId: formData.get("responseId"),
+    assessmentId: formData.get("assessmentId"),
+    ssdfResultId: formData.get("ssdfResultId"),
     description: formData.get("description"),
     type: formData.get("type"),
     link: formData.get("link"),
@@ -38,9 +43,26 @@ export async function createEvidence(formData: FormData) {
     return { error: "Dados invalidos" };
   }
 
+  const ssdfResult = await prisma.assessmentSsdfTaskResult.findUnique({
+    where: { id: parsed.data.ssdfResultId },
+    include: { assessment: { select: { id: true, organizationId: true, deletedAt: true } } }
+  });
+
+  if (!ssdfResult || ssdfResult.assessmentId !== parsed.data.assessmentId || ssdfResult.assessment.deletedAt) {
+    return { error: "Resposta nao encontrada" };
+  }
+
+  const hasAccess = await ensureOrganizationAccess(
+    session,
+    ssdfResult.assessment.organizationId
+  );
+  if (!hasAccess) {
+    return { error: "Sem acesso a organizacao" };
+  }
+
   const evidence = await prisma.evidence.create({
     data: {
-      responseId: parsed.data.responseId,
+      ssdfResultId: parsed.data.ssdfResultId,
       description: parsed.data.description,
       type: parsed.data.type,
       link: parsed.data.link || null,
@@ -51,15 +73,20 @@ export async function createEvidence(formData: FormData) {
     }
   });
 
-  const afterJson = JSON.parse(JSON.stringify(evidence));
-
-  await prisma.auditLog.create({
-    data: {
-      userId: session.user.id,
-      entity: "Evidence",
-      entityId: evidence.id,
-      action: "create",
-      after: afterJson
+  await logAuditEvent({
+    action: AuditAction.CREATE,
+    entityType: "Evidence",
+    entityId: evidence.id,
+    fieldName: "description",
+    oldValue: null,
+    newValue: evidence.description,
+    organizationId: ssdfResult.assessment.organizationId,
+    actor: { id: session.user.id, email: session.user.email, role: session.user.role },
+    requestContext: getRequestContext(),
+    metadata: {
+      type: evidence.type,
+      ssdfResultId: evidence.ssdfResultId,
+      link: evidence.link || null
     }
   });
 

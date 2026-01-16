@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ptBR } from "@/lib/i18n/ptBR";
 
 export type AssessmentOption = {
   id: string;
@@ -27,7 +28,7 @@ export default function AssessmentPicker({ assessments, selectedId, basePath }: 
       onValueChange={(value) => router.push(`${basePath}?assessmentId=${value}`)}
     >
       <SelectTrigger className="w-[280px]">
-        <SelectValue placeholder="Selecione um assessment" />
+        <SelectValue placeholder={ptBR.common.selectAssessment} />
       </SelectTrigger>
       <SelectContent>
         {assessments.map((assessment) => (

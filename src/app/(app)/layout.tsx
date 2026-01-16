@@ -19,7 +19,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </div>
           <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">NIST SP 800-218</p>
         </Link>
-        <Sidebar />
+        <Sidebar role={session?.user?.role} />
         <div className="mt-auto rounded-xl border border-border bg-white/80 p-4 text-xs text-muted-foreground dark:bg-slate-950/80">
           <p className="font-semibold text-foreground">Maturidade em foco</p>
           <p>Atualize respostas e acompanhe o score por grupo.</p>

@@ -1,8 +1,10 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { getServerSession } from "next-auth";
+import { DgLevel, Role } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { canEdit } from "@/lib/rbac";
+import { getAccessibleOrganizationIds } from "@/lib/tenant";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,16 +12,31 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { createAssessment } from "@/app/(app)/assessments/actions";
 import { formatDate } from "@/lib/format";
+import DeleteAssessmentButton from "@/components/assessments/delete-assessment-button";
 
 export default async function AssessmentsPage() {
   const session = await getServerSession(authOptions);
   const allowEdit = canEdit(session?.user?.role);
+  const isAdmin = session?.user?.role === Role.ADMIN;
+
+  const accessibleOrgIds = await getAccessibleOrganizationIds(session);
+  const orgFilter =
+    session?.user?.role === Role.ADMIN || accessibleOrgIds === null
+      ? { deletedAt: null }
+      : { id: { in: accessibleOrgIds }, deletedAt: null };
 
   const organizations = await prisma.organization.findMany({
+    where: orgFilter,
     orderBy: { name: "asc" }
   });
 
+  const assessmentFilter =
+    session?.user?.role === Role.ADMIN || accessibleOrgIds === null
+      ? { organization: { is: { deletedAt: null } }, deletedAt: null }
+      : { organizationId: { in: accessibleOrgIds }, deletedAt: null };
+
   const assessments = await prisma.assessment.findMany({
+    where: assessmentFilter,
     include: { organization: true },
     orderBy: { createdAt: "desc" }
   });
@@ -59,6 +76,10 @@ export default async function AssessmentsPage() {
                   </select>
                 </div>
                 <div className="space-y-2">
+                  <label className="text-sm font-medium">Nome do assessment</label>
+                  <Input name="name" placeholder="Assessment 2024" required />
+                </div>
+                <div className="space-y-2">
                   <label className="text-sm font-medium">Unidade/Area</label>
                   <Input name="unit" placeholder="Ex: Engenharia" required />
                 </div>
@@ -69,6 +90,18 @@ export default async function AssessmentsPage() {
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Responsavel</label>
                   <Input name="assessmentOwner" placeholder="Nome do responsavel" required />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">DG (Design Goal)</label>
+                  <select
+                    name="dgLevel"
+                    className="h-10 w-full rounded-md border border-border bg-white/80 px-3 text-sm dark:bg-slate-900/70"
+                    required
+                  >
+                    <option value={DgLevel.DG1}>DG1</option>
+                    <option value={DgLevel.DG2}>DG2</option>
+                    <option value={DgLevel.DG3}>DG3</option>
+                  </select>
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Data de inicio</label>
@@ -106,6 +139,7 @@ export default async function AssessmentsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Empresa</TableHead>
+                <TableHead>Assessment</TableHead>
                 <TableHead>Unidade/Area</TableHead>
                 <TableHead>Escopo</TableHead>
                 <TableHead>Responsavel</TableHead>
@@ -118,21 +152,31 @@ export default async function AssessmentsPage() {
               {assessments.map((assessment) => (
                 <TableRow key={assessment.id}>
                   <TableCell className="font-semibold">{assessment.organization.name}</TableCell>
+                  <TableCell>{assessment.name}</TableCell>
                   <TableCell>{assessment.unit}</TableCell>
                   <TableCell>{assessment.scope}</TableCell>
                   <TableCell>{assessment.assessmentOwner}</TableCell>
                   <TableCell>{formatDate(assessment.startDate)}</TableCell>
                   <TableCell>{formatDate(assessment.reviewDate)}</TableCell>
                   <TableCell>
-                    <Button asChild size="sm">
-                      <Link href={`/assessments/${assessment.id}`}>Abrir</Link>
-                    </Button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button asChild size="sm">
+                        <Link href={`/assessments/${assessment.id}`}>Abrir</Link>
+                      </Button>
+                      {isAdmin ? (
+                        <DeleteAssessmentButton
+                          assessmentId={assessment.id}
+                          assessmentName={assessment.name}
+                          organizationName={assessment.organization.name}
+                        />
+                      ) : null}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
               {assessments.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-sm text-muted-foreground">
+                  <TableCell colSpan={8} className="text-sm text-muted-foreground">
                     Nenhum assessment cadastrado.
                   </TableCell>
                 </TableRow>

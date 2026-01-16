@@ -1,0 +1,238 @@
+{
+  "controls": [
+    {
+      "id": "1",
+      "name": "Inventory and Control of Enterprise Assets",
+      "description": "Maintain accurate inventory of enterprise assets.",
+      "safeguards": [
+        {
+          "id": "1.1",
+          "name": "Establish and Maintain Enterprise Asset Inventory",
+          "description": "Maintain an accurate, detailed inventory of enterprise assets.",
+          "implementationGroup": "IG1"
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "name": "Inventory and Control of Software Assets",
+      "description": "Inventory and track software assets.",
+      "safeguards": [
+        {
+          "id": "2.1",
+          "name": "Establish and Maintain Software Inventory",
+          "description": "Maintain an accurate inventory of software assets.",
+          "implementationGroup": "IG1"
+        }
+      ]
+    },
+    {
+      "id": "3",
+      "name": "Data Protection",
+      "description": "Protect data and prevent unauthorized access.",
+      "safeguards": [
+        {
+          "id": "3.1",
+          "name": "Establish and Maintain a Data Management Process",
+          "description": "Define and implement data protection requirements.",
+          "implementationGroup": "IG1"
+        }
+      ]
+    },
+    {
+      "id": "4",
+      "name": "Secure Configuration of Enterprise Assets and Software",
+      "description": "Establish secure configuration standards.",
+      "safeguards": [
+        {
+          "id": "4.1",
+          "name": "Establish and Maintain a Secure Configuration Process",
+          "description": "Define secure baselines and enforce them.",
+          "implementationGroup": "IG2"
+        }
+      ]
+    },
+    {
+      "id": "5",
+      "name": "Account Management",
+      "description": "Manage and secure user accounts.",
+      "safeguards": [
+        {
+          "id": "5.1",
+          "name": "Establish and Maintain an Inventory of Accounts",
+          "description": "Maintain inventory of user and service accounts.",
+          "implementationGroup": "IG1"
+        }
+      ]
+    },
+    {
+      "id": "6",
+      "name": "Access Control Management",
+      "description": "Control access based on least privilege.",
+      "safeguards": [
+        {
+          "id": "6.1",
+          "name": "Establish an Access Granting Process",
+          "description": "Document and enforce access granting workflows.",
+          "implementationGroup": "IG2"
+        }
+      ]
+    },
+    {
+      "id": "7",
+      "name": "Continuous Vulnerability Management",
+      "description": "Identify and remediate vulnerabilities.",
+      "safeguards": [
+        {
+          "id": "7.1",
+          "name": "Establish and Maintain a Vulnerability Management Process",
+          "description": "Define scope, cadence, and remediation workflow.",
+          "implementationGroup": "IG2"
+        }
+      ]
+    },
+    {
+      "id": "8",
+      "name": "Audit Log Management",
+      "description": "Collect and analyze audit logs.",
+      "safeguards": [
+        {
+          "id": "8.1",
+          "name": "Establish and Maintain an Audit Log Management Process",
+          "description": "Centralize and protect audit logs.",
+          "implementationGroup": "IG2"
+        }
+      ]
+    },
+    {
+      "id": "9",
+      "name": "Email and Web Browser Protections",
+      "description": "Protect against phishing and web threats.",
+      "safeguards": [
+        {
+          "id": "9.1",
+          "name": "Ensure Use of Only Fully Supported Browsers and Email Clients",
+          "description": "Restrict to supported clients.",
+          "implementationGroup": "IG2"
+        }
+      ]
+    },
+    {
+      "id": "10",
+      "name": "Malware Defenses",
+      "description": "Prevent, detect, and respond to malware.",
+      "safeguards": [
+        {
+          "id": "10.1",
+          "name": "Deploy and Maintain Anti-Malware Software",
+          "description": "Ensure anti-malware coverage on assets.",
+          "implementationGroup": "IG2"
+        }
+      ]
+    },
+    {
+      "id": "11",
+      "name": "Data Recovery",
+      "description": "Ensure recovery and backup capabilities.",
+      "safeguards": [
+        {
+          "id": "11.1",
+          "name": "Establish and Maintain a Data Recovery Process",
+          "description": "Maintain backups and test recovery.",
+          "implementationGroup": "IG1"
+        }
+      ]
+    },
+    {
+      "id": "12",
+      "name": "Network Infrastructure Management",
+      "description": "Manage and secure network infrastructure.",
+      "safeguards": [
+        {
+          "id": "12.1",
+          "name": "Ensure Network Infrastructure is Asset Managed",
+          "description": "Maintain inventory and ownership.",
+          "implementationGroup": "IG2"
+        }
+      ]
+    },
+    {
+      "id": "13",
+      "name": "Network Monitoring and Defense",
+      "description": "Monitor and defend network activities.",
+      "safeguards": [
+        {
+          "id": "13.1",
+          "name": "Centralize Security Event Alerting",
+          "description": "Aggregate and alert on network events.",
+          "implementationGroup": "IG2"
+        }
+      ]
+    },
+    {
+      "id": "14",
+      "name": "Security Awareness and Skills Training",
+      "description": "Train workforce on security practices.",
+      "safeguards": [
+        {
+          "id": "14.1",
+          "name": "Establish and Maintain a Security Awareness Program",
+          "description": "Deliver training and awareness.",
+          "implementationGroup": "IG1"
+        }
+      ]
+    },
+    {
+      "id": "15",
+      "name": "Service Provider Management",
+      "description": "Manage third-party security risks.",
+      "safeguards": [
+        {
+          "id": "15.1",
+          "name": "Establish and Maintain an Inventory of Service Providers",
+          "description": "Track service providers and risks.",
+          "implementationGroup": "IG2"
+        }
+      ]
+    },
+    {
+      "id": "16",
+      "name": "Application Software Security",
+      "description": "Build secure software practices.",
+      "safeguards": [
+        {
+          "id": "16.1",
+          "name": "Establish and Maintain a Secure Application Development Process",
+          "description": "Define secure SDLC requirements.",
+          "implementationGroup": "IG2"
+        }
+      ]
+    },
+    {
+      "id": "17",
+      "name": "Incident Response Management",
+      "description": "Prepare and manage incident response.",
+      "safeguards": [
+        {
+          "id": "17.1",
+          "name": "Designate Personnel to Manage Incident Handling",
+          "description": "Establish incident response roles.",
+          "implementationGroup": "IG2"
+        }
+      ]
+    },
+    {
+      "id": "18",
+      "name": "Penetration Testing",
+      "description": "Regularly test security controls.",
+      "safeguards": [
+        {
+          "id": "18.1",
+          "name": "Establish and Maintain a Penetration Testing Program",
+          "description": "Plan and perform penetration testing.",
+          "implementationGroup": "IG3"
+        }
+      ]
+    }
+  ]
+}
