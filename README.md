@@ -10,23 +10,59 @@ Sistema web para conduzir assessments SSDF, registrar evidencias, calcular matur
 - Docker Compose (app + postgres)
 - Zod, ESLint, Prettier
 
-## Como rodar (local)
-1) Copie `.env.example` para `.env` e ajuste as variaveis.
-2) Suba o Postgres e o app:
+## Pre-requisitos
+- Docker + Docker Compose instalados no servidor
+- (Opcional para dev local sem Docker) Node.js 20+ e PostgreSQL 16+
+
+## Instalacao (servidor com Docker)
+1) Clone o repo e copie o `.env`:
 
 ```bash
-docker compose up --build
+git clone <repo>
+cd nist-assessment
+cp .env.example .env
 ```
 
-3) Rode migrations e seed (no container app ou local):
+2) Ajuste variaveis essenciais:
+- `NEXTAUTH_SECRET`
+- `NEXTAUTH_URL`
+- `DATABASE_URL` (se usar DB externo)
+
+3) Suba os containers:
+
+```bash
+docker compose up -d --build
+```
+
+4) Aplique migrations e seed no container do app:
+
+```bash
+docker exec nist-assessment-app-1 npx prisma migrate deploy
+docker exec nist-assessment-app-1 npx prisma db seed
+```
+
+5) Acesse: http://localhost:3000
+
+## Como rodar (local sem Docker)
+Se preferir usar Docker localmente, siga a secao "Instalacao (servidor com Docker)".
+
+1) Instale Node.js 20+ e PostgreSQL 16+.
+2) Copie `.env.example` para `.env` e ajuste `DATABASE_URL`.
+3) Instale dependencias e rode migrations/seed:
 
 ```bash
 npm install
-npm run prisma:migrate
+npx prisma migrate deploy
 npm run prisma:seed
 ```
 
-4) Acesse: http://localhost:3000
+4) Inicie o app:
+
+```bash
+npm run dev
+```
+
+5) Acesse: http://localhost:3000
 
 ## Seed (SSDF + CIS)
 - SSDF: o seed tenta ler o Excel em `SSDF_EXCEL_PATH`.
@@ -51,9 +87,9 @@ Para usar o template real, coloque o arquivo em `data/ssdf-template.xlsx` ou aju
 - Aplicavel: derivado do status (`NOT_APPLICABLE` = Nao aplicavel).
 - Maturidade: nivel atual (0-3) por tarefa.
 - Alvo: nivel desejado (0-3).
-- Gap: diferenca entre Alvo e Maturidade (Alvo - Maturidade).
+- Gap: diferenca entre Alvo e Maturidade (max(Alvo - Maturidade, 0)).
 - Peso: importancia da tarefa (1-5).
-- Prioridade: Gap * Peso (pode ser negativo).
+- Prioridade: Gap * Peso.
 
 ## CIS Controls View + replicacao
 - O modulo CIS e alimentado automaticamente a partir dos resultados do SSDF.
@@ -68,8 +104,9 @@ Para usar o template real, coloque o arquivo em `data/ssdf-template.xlsx` ou aju
 - Consulte `sql/README.md` para as views recomendadas e dicas de modelagem.
 
 ## Exportacoes
-- No Dashboard, use o botao Exportar para gerar relatorios em XLSX, CSV, JSON ou TSV.
+- No Dashboard, use o botao Exportar para gerar relatorios em PDF, XLSX, CSV, JSON ou TSV.
 - O XLSX inclui abas com resumo executivo, indicadores por grupo e detalhes completos das tarefas.
+- O PDF e gerado server-side com Playwright/Chromium (incluso na imagem Docker).
 
 ## SSO (Okta, Azure AD, OIDC)
 - Configure as variaveis no `.env`:
