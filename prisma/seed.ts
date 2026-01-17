@@ -3,6 +3,7 @@ import path from "path";
 import * as xlsx from "xlsx";
 import bcrypt from "bcryptjs";
 import {
+  AssessmentReleaseStatus,
   DgLevel,
   EvidenceType,
   ImplementationGroup,
@@ -391,6 +392,21 @@ async function seedAssessments(org1Id: string, org2Id: string, adminId: string) 
 
   const tasks = await prisma.ssdfTask.findMany({ select: { id: true } });
   for (const assessment of [assessment1, assessment2]) {
+    const existingRelease = await prisma.assessmentRelease.findFirst({
+      where: { assessmentId: assessment.id },
+      orderBy: { createdAt: "desc" }
+    });
+    if (!existingRelease) {
+      await prisma.assessmentRelease.create({
+        data: {
+          assessmentId: assessment.id,
+          status: AssessmentReleaseStatus.DRAFT,
+          createdByUserId: adminId,
+          notes: "Release inicial gerado no seed"
+        }
+      });
+    }
+
     const existing = await prisma.assessmentSsdfTaskResult.findMany({
       where: { assessmentId: assessment.id },
       select: { ssdfTaskId: true }

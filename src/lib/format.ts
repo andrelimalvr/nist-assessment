@@ -5,6 +5,11 @@ export function formatDate(date?: Date | null) {
   return format(date, "yyyy-MM-dd");
 }
 
+export function formatDateTime(date?: Date | null) {
+  if (!date) return "-";
+  return format(date, "yyyy-MM-dd HH:mm");
+}
+
 export function formatPercent(value: number, decimals = 0) {
   const safe = Number.isFinite(value) ? value : 0;
   return `${(safe * 100).toFixed(decimals)}%`;

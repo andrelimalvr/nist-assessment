@@ -1,12 +1,16 @@
 ﻿import { notFound } from "next/navigation";
 import { getServerSession } from "next-auth";
-import { SsdfStatus } from "@prisma/client";
+import { AssessmentReleaseStatus, Role, SsdfStatus } from "@prisma/client";
 import AssessmentTable from "@/components/assessment/assessment-table";
+import AssessmentReleaseControls from "@/components/assessment/assessment-release-controls";
+import AssessmentEditingControls from "@/components/assessment/assessment-editing-controls";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { authOptions } from "@/lib/auth";
 import { formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { canEdit } from "@/lib/rbac";
+import { isReleaseLocked } from "@/lib/assessment-release";
+import { canEditAssessment } from "@/lib/assessment-editing";
 import { ensureOrganizationAccess } from "@/lib/tenant";
 import { MAX_MATURITY_LEVEL } from "@/lib/ssdf";
 
@@ -29,7 +33,10 @@ export default async function AssessmentDetailPage({
 
   const assessment = await prisma.assessment.findFirst({
     where: { id: params.id, deletedAt: null },
-    include: { organization: true }
+    include: {
+      organization: true,
+      editingLockedByUser: { select: { name: true, email: true } }
+    }
   });
 
   if (!assessment) {
@@ -88,6 +95,21 @@ export default async function AssessmentDetailPage({
     orderBy: { ssdfTaskId: "asc" }
   });
 
+  const release = await prisma.assessmentRelease.findFirst({
+    where: { assessmentId: assessment.id },
+    orderBy: { createdAt: "desc" }
+  });
+  const releaseStatus = release?.status ?? AssessmentReleaseStatus.DRAFT;
+  const isLocked = isReleaseLocked(releaseStatus);
+  const canEditAssessmentRows = canEditAssessment({
+    role: session?.user?.role,
+    releaseStatus,
+    editingMode: assessment.editingMode
+  });
+  const showReadOnlyBanner =
+    session?.user?.role === Role.ASSESSOR &&
+    releaseStatus !== AssessmentReleaseStatus.DRAFT;
+
   const rows = responses.map((response) => ({
     id: response.id,
     taskId: response.ssdfTask.id,
@@ -125,6 +147,12 @@ export default async function AssessmentDetailPage({
         </p>
       </div>
 
+      {showReadOnlyBanner ? (
+        <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          Este assessment esta aprovado ou em revisao e nao pode ser editado. Solicite ao admin liberar uma nova revisao.
+        </div>
+      ) : null}
+
       <Card>
         <CardHeader>
           <CardTitle>Resumo do escopo</CardTitle>
@@ -146,6 +174,35 @@ export default async function AssessmentDetailPage({
             <p className="text-xs text-muted-foreground">Notas</p>
             <p className="text-sm text-muted-foreground">{assessment.notes || "-"}</p>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Publicacao</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <AssessmentReleaseControls
+            assessmentId={assessment.id}
+            status={releaseStatus}
+            canSubmit={allowEdit}
+            canApprove={session?.user?.role === Role.ADMIN}
+          />
+          <AssessmentEditingControls
+            assessmentId={assessment.id}
+            editingMode={assessment.editingMode}
+            releaseStatus={releaseStatus}
+            lockedByName={assessment.editingLockedByUser?.name}
+            lockedByEmail={assessment.editingLockedByUser?.email}
+            lockedAt={assessment.editingLockedAt?.toISOString() ?? null}
+            lockNote={assessment.editingLockNote}
+            canToggle={session?.user?.role === Role.ADMIN}
+          />
+          {isLocked ? (
+            <p className="text-sm text-muted-foreground">
+              Edicoes bloqueadas enquanto o assessment estiver em revisao ou aprovado.
+            </p>
+          ) : null}
         </CardContent>
       </Card>
 
@@ -226,7 +283,11 @@ export default async function AssessmentDetailPage({
           <CardTitle>Tabela principal</CardTitle>
         </CardHeader>
         <CardContent>
-          <AssessmentTable assessmentId={assessment.id} responses={rows} canEdit={allowEdit} />
+          <AssessmentTable
+            assessmentId={assessment.id}
+            responses={rows}
+            canEdit={canEditAssessmentRows}
+          />
         </CardContent>
       </Card>
     </div>

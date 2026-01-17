@@ -71,6 +71,23 @@ enum AuditAction {
   OTHER
 }
 
+enum AssessmentReleaseStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+}
+
+enum EvidenceReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum EditingMode {
+  LOCKED_ADMIN_ONLY
+  UNLOCKED_FOR_ASSESSORS
+}
+
 model User {
   id           String      @id @default(cuid()) @map("id")
   name         String      @map("name")
@@ -83,9 +100,14 @@ model User {
   createdAt    DateTime    @default(now()) @map("created_at")
   updatedAt    DateTime    @updatedAt @map("updated_at")
   assessmentsCreated Assessment[] @relation("AssessmentCreatedBy")
+  editingLocks Assessment[] @relation("AssessmentEditingLockedBy")
+  assessmentReleasesCreated AssessmentRelease[] @relation("AssessmentReleaseCreatedBy")
+  assessmentReleasesApproved AssessmentRelease[] @relation("AssessmentReleaseApprovedBy")
   ssdfResultsUpdated AssessmentSsdfTaskResult[] @relation("SsdfResultUpdatedBy")
   cisResultsUpdated AssessmentCisResult[] @relation("CisResultUpdatedBy")
   userOrganizations UserOrganization[]
+  assessmentTaskHistories AssessmentTaskHistory[] @relation("AssessmentTaskHistoryChangedBy")
+  evidenceHistories EvidenceHistory[] @relation("EvidenceHistoryChangedBy")
   auditLogs    AuditLog[]
 
   @@index([deletedAt])
@@ -131,6 +153,11 @@ model Assessment {
   startDate       DateTime  @map("start_date")
   reviewDate      DateTime? @map("review_date")
   notes           String?   @map("notes") @db.Text
+  editingMode     EditingMode @default(UNLOCKED_FOR_ASSESSORS) @map("editing_mode")
+  editingLockedByUserId String? @map("editing_locked_by_user_id")
+  editingLockedByUser User? @relation("AssessmentEditingLockedBy", fields: [editingLockedByUserId], references: [id])
+  editingLockedAt DateTime? @map("editing_locked_at")
+  editingLockNote String?   @map("editing_lock_note") @db.Text
   deletedAt       DateTime? @map("deleted_at")
   createdById     String?   @map("created_by_id")
   createdBy       User?     @relation("AssessmentCreatedBy", fields: [createdById], references: [id])
@@ -138,10 +165,34 @@ model Assessment {
   updatedAt       DateTime  @updatedAt @map("updated_at")
   ssdfResults     AssessmentSsdfTaskResult[]
   cisResults      AssessmentCisResult[]
+  releases        AssessmentRelease[]
 
   @@index([organizationId])
   @@index([deletedAt])
   @@map("assessments")
+}
+
+model AssessmentRelease {
+  id               String                  @id @default(cuid()) @map("id")
+  assessmentId     String                  @map("assessment_id")
+  assessment       Assessment              @relation(fields: [assessmentId], references: [id])
+  status           AssessmentReleaseStatus @default(DRAFT) @map("status")
+  notes            String?                 @map("notes") @db.Text
+  createdAt        DateTime                @default(now()) @map("created_at")
+  createdByUserId  String?                 @map("created_by_user_id")
+  createdByUser    User?                   @relation("AssessmentReleaseCreatedBy", fields: [createdByUserId], references: [id])
+  baseReleaseId    String?                 @map("base_release_id")
+  baseRelease      AssessmentRelease?      @relation("AssessmentReleaseBase", fields: [baseReleaseId], references: [id])
+  derivedReleases  AssessmentRelease[]     @relation("AssessmentReleaseBase")
+  approvedAt       DateTime?               @map("approved_at")
+  approvedByUserId String?                 @map("approved_by_user_id")
+  approvedByUser   User?                   @relation("AssessmentReleaseApprovedBy", fields: [approvedByUserId], references: [id])
+  snapshot         Json?                   @map("snapshot")
+
+  @@index([assessmentId])
+  @@index([status])
+  @@index([baseReleaseId])
+  @@map("assessment_releases")
 }
 
 model SsdfGroup {
@@ -202,6 +253,7 @@ model AssessmentSsdfTaskResult {
   createdAt     DateTime   @default(now()) @map("created_at")
   updatedAt     DateTime   @updatedAt @map("updated_at")
   evidences     Evidence[]
+  history       AssessmentTaskHistory[]
 
   @@unique([assessmentId, ssdfTaskId])
   @@index([assessmentId, status])
@@ -215,6 +267,7 @@ model Evidence {
   ssdfResult  AssessmentSsdfTaskResult @relation(fields: [ssdfResultId], references: [id])
   description String     @map("description")
   type        EvidenceType @map("type")
+  reviewStatus EvidenceReviewStatus @default(PENDING) @map("review_status")
   link        String?    @map("link")
   owner       String?    @map("owner")
   date        DateTime?  @map("date")
@@ -222,9 +275,49 @@ model Evidence {
   notes       String?    @map("notes") @db.Text
   createdAt   DateTime   @default(now()) @map("created_at")
   updatedAt   DateTime   @updatedAt @map("updated_at")
+  history     EvidenceHistory[]
 
   @@index([ssdfResultId])
   @@map("evidences")
+}
+
+model AssessmentTaskHistory {
+  id                     String     @id @default(cuid()) @map("id")
+  assessmentTaskResultId String     @map("assessment_task_result_id")
+  assessmentTaskResult   AssessmentSsdfTaskResult @relation(fields: [assessmentTaskResultId], references: [id])
+  changedAt              DateTime   @default(now()) @map("changed_at")
+  changedByUserId        String?    @map("changed_by_user_id")
+  changedByUser          User?      @relation("AssessmentTaskHistoryChangedBy", fields: [changedByUserId], references: [id])
+  fieldName              String     @map("field_name")
+  oldValue               String?    @map("old_value") @db.Text
+  newValue               String?    @map("new_value") @db.Text
+  reason                 String?    @map("reason") @db.Text
+  requestId              String?    @map("request_id")
+  ip                     String?    @map("ip")
+  userAgent              String?    @map("user_agent") @db.Text
+  metadata               Json?      @map("metadata")
+
+  @@index([assessmentTaskResultId])
+  @@index([changedAt])
+  @@map("assessment_task_histories")
+}
+
+model EvidenceHistory {
+  id              String     @id @default(cuid()) @map("id")
+  evidenceId      String     @map("evidence_id")
+  evidence        Evidence   @relation(fields: [evidenceId], references: [id])
+  changedAt       DateTime   @default(now()) @map("changed_at")
+  changedByUserId String?    @map("changed_by_user_id")
+  changedByUser   User?      @relation("EvidenceHistoryChangedBy", fields: [changedByUserId], references: [id])
+  fieldName       String     @map("field_name")
+  oldValue        String?    @map("old_value") @db.Text
+  newValue        String?    @map("new_value") @db.Text
+  reason          String?    @map("reason") @db.Text
+  metadata        Json?      @map("metadata")
+
+  @@index([evidenceId])
+  @@index([changedAt])
+  @@map("evidence_histories")
 }
 
 model CisControl {

@@ -13,9 +13,15 @@ type AssessmentPickerProps = {
   assessments: AssessmentOption[];
   selectedId?: string | null;
   basePath: string;
+  extraParams?: Record<string, string | undefined>;
 };
 
-export default function AssessmentPicker({ assessments, selectedId, basePath }: AssessmentPickerProps) {
+export default function AssessmentPicker({
+  assessments,
+  selectedId,
+  basePath,
+  extraParams
+}: AssessmentPickerProps) {
   const router = useRouter();
 
   if (assessments.length === 0) {
@@ -25,7 +31,17 @@ export default function AssessmentPicker({ assessments, selectedId, basePath }: 
   return (
     <Select
       value={selectedId ?? assessments[0]?.id}
-      onValueChange={(value) => router.push(`${basePath}?assessmentId=${value}`)}
+      onValueChange={(value) => {
+        const params = new URLSearchParams();
+        params.set("assessmentId", value);
+        if (extraParams) {
+          Object.entries(extraParams).forEach(([key, paramValue]) => {
+            if (!paramValue) return;
+            params.set(key, paramValue);
+          });
+        }
+        router.push(`${basePath}?${params.toString()}`);
+      }}
     >
       <SelectTrigger className="w-[280px]">
         <SelectValue placeholder={ptBR.common.selectAssessment} />

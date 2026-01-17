@@ -1,9 +1,10 @@
 import AssessmentPicker from "@/components/assessment/assessment-picker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
 import { formatNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
-import { CisStatus, ImplementationGroup, Role } from "@prisma/client";
+import { AssessmentReleaseStatus, CisStatus, ImplementationGroup, Role } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { getAccessibleOrganizationIds } from "@/lib/tenant";
 import { updateCisOverride } from "@/app/(app)/cis/actions";
@@ -11,6 +12,7 @@ import ControlSummaryTable from "@/components/cis/control-summary-table";
 import SafeguardsTable from "@/components/cis/safeguards-table";
 import { getCisStatusLabel, getControlDisplay, getSafeguardDisplay, ptBR } from "@/lib/i18n/ptBR";
 import { compareSsdfId } from "@/lib/sorters";
+import { canEditAssessment } from "@/lib/assessment-editing";
 
 type IgStats = {
   total: number;
@@ -23,7 +25,6 @@ export default async function CisDashboardPage({
   searchParams?: { assessmentId?: string };
 }) {
   const session = await getServerSession(authOptions);
-  const allowEdit = session?.user?.role === Role.ADMIN || session?.user?.role === Role.ASSESSOR;
   const accessibleOrgIds = await getAccessibleOrganizationIds(session);
   const assessmentFilter =
     session?.user?.role === Role.ADMIN || accessibleOrgIds === null
@@ -72,6 +73,26 @@ export default async function CisDashboardPage({
       }
     })
   ]);
+
+  const release = await prisma.assessmentRelease.findFirst({
+    where: { assessmentId: selected.id },
+    orderBy: { createdAt: "desc" }
+  });
+  const releaseStatus = release?.status ?? AssessmentReleaseStatus.DRAFT;
+  const canEdit = canEditAssessment({
+    role: session?.user?.role,
+    releaseStatus,
+    editingMode: selected.editingMode
+  });
+  const showReadOnlyBanner =
+    session?.user?.role === Role.ASSESSOR &&
+    releaseStatus !== AssessmentReleaseStatus.DRAFT;
+  const releaseLabel =
+    releaseStatus === AssessmentReleaseStatus.APPROVED
+      ? "Aprovada"
+      : releaseStatus === AssessmentReleaseStatus.IN_REVIEW
+        ? "Em revisao"
+        : "Rascunho";
 
   const resultBySafeguardId = new Map(
     results
@@ -189,9 +210,16 @@ export default async function CisDashboardPage({
           <p className="text-muted-foreground">
             {ptBR.cis.subtitle}
           </p>
+          <p className="text-xs text-muted-foreground">Revisao: {releaseLabel}</p>
         </div>
         <AssessmentPicker assessments={assessmentOptions} selectedId={selected.id} basePath="/cis" />
       </div>
+
+      {showReadOnlyBanner ? (
+        <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          Este assessment esta aprovado ou em revisao e nao pode ser editado. Solicite ao admin liberar uma nova revisao.
+        </div>
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-3">
         {(["IG1", "IG2", "IG3"] as ImplementationGroup[]).map((ig) => {
@@ -220,7 +248,7 @@ export default async function CisDashboardPage({
           <CardTitle>{ptBR.cis.manualOverrideTitle}</CardTitle>
         </CardHeader>
         <CardContent>
-          {allowEdit ? (
+          {canEdit ? (
             <form action={updateCisOverride} className="grid gap-4 md:grid-cols-2">
               <input type="hidden" name="assessmentId" value={selected.id} />
               <div className="space-y-2 md:col-span-2">
@@ -271,6 +299,10 @@ export default async function CisDashboardPage({
                   defaultValue={0}
                   className="h-10 w-full rounded-md border border-border bg-white/80 px-3 text-sm dark:bg-slate-900/70"
                 />
+              </div>
+              <div className="md:col-span-2 space-y-2">
+                <label className="text-sm font-medium">Motivo da alteracao</label>
+                <Textarea name="reason" placeholder="Opcional" />
               </div>
               <div className="md:col-span-2">
                 <button

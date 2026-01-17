@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SsdfStatus } from "@prisma/client";
 import { MAX_MATURITY_LEVEL, formatEvidenceLinks, isApplicable, statusOptions, statusLabels } from "@/lib/ssdf";
+import HistoryDrawer from "@/components/history/history-drawer";
 
 export type AssessmentResponseRow = {
   id: string;
@@ -41,7 +42,26 @@ type AssessmentTableProps = {
   canEdit: boolean;
 };
 
-export default function AssessmentTable({ assessmentId, responses, canEdit }: AssessmentTableProps) {
+const HISTORY_FIELDS = [
+  { value: "status", label: "Status" },
+  { value: "applicable", label: "Aplicavel" },
+  { value: "maturityLevel", label: "Maturidade" },
+  { value: "targetLevel", label: "Alvo" },
+  { value: "weight", label: "Peso" },
+  { value: "owner", label: "Responsavel" },
+  { value: "team", label: "Area/Time" },
+  { value: "dueDate", label: "Prazo" },
+  { value: "lastReview", label: "Ultima revisao" },
+  { value: "evidenceText", label: "Evidencias" },
+  { value: "evidenceLinks", label: "Links adicionais" },
+  { value: "comments", label: "Observacoes" }
+];
+
+export default function AssessmentTable({
+  assessmentId,
+  responses,
+  canEdit
+}: AssessmentTableProps) {
   const router = useRouter();
   const [selected, setSelected] = useState<AssessmentResponseRow | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -80,7 +100,8 @@ export default function AssessmentTable({ assessmentId, responses, canEdit }: As
       lastReview: String(formData.get("lastReview") || ""),
       evidenceText: String(formData.get("evidenceText") || ""),
       evidenceLinks: String(formData.get("evidenceLinks") || ""),
-      comments: String(formData.get("comments") || "")
+      comments: String(formData.get("comments") || ""),
+      reason: String(formData.get("reason") || "")
     };
 
     setIsSaving(true);
@@ -150,7 +171,7 @@ export default function AssessmentTable({ assessmentId, responses, canEdit }: As
               <TableCell>{row.priority}</TableCell>
               <TableCell>{row.owner || "-"}</TableCell>
               <TableCell>{row.team || "-"}</TableCell>
-              <TableCell>
+              <TableCell className="flex flex-wrap gap-2">
                 <Button
                   size="sm"
                   variant="outline"
@@ -159,6 +180,12 @@ export default function AssessmentTable({ assessmentId, responses, canEdit }: As
                 >
                   Editar
                 </Button>
+                <HistoryDrawer
+                  title={`Historico ${row.taskId}`}
+                  fetchUrl={`/api/assessments/${assessmentId}/responses/${row.id}/history`}
+                  fields={HISTORY_FIELDS}
+                  triggerLabel="Historico"
+                />
               </TableCell>
             </TableRow>
           ))}
@@ -280,6 +307,10 @@ export default function AssessmentTable({ assessmentId, responses, canEdit }: As
               <div className="md:col-span-2 space-y-2">
                 <label className="text-sm font-medium">Observacoes</label>
                 <Textarea name="comments" defaultValue={selected.comments || ""} />
+              </div>
+              <div className="md:col-span-2 space-y-2">
+                <label className="text-sm font-medium">Motivo da alteracao</label>
+                <Textarea name="reason" placeholder="Opcional" />
               </div>
               {error ? (
                 <p className="md:col-span-2 text-sm text-red-600">{error}</p>

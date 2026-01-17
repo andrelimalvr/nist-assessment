@@ -1,20 +1,23 @@
 "use server";
 
-import { AuditAction, CisStatus, Role } from "@prisma/client";
+import { AuditAction, CisStatus, EditingMode, Role } from "@prisma/client";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/rbac";
 import { ensureOrganizationAccess } from "@/lib/tenant";
 import { getRequestContext } from "@/lib/audit/request";
-import { logFieldChanges } from "@/lib/audit/log";
+import { logAuditEvent, logFieldChanges } from "@/lib/audit/log";
+import { isReleaseLocked } from "@/lib/assessment-release";
+import { canEditAssessment } from "@/lib/assessment-editing";
 
 const overrideSchema = z.object({
   assessmentId: z.string().min(1),
   cisSafeguardId: z.string().min(1),
   manualOverride: z.boolean(),
   manualStatus: z.nativeEnum(CisStatus).optional(),
-  manualMaturityLevel: z.coerce.number().min(0).max(3).optional()
+  manualMaturityLevel: z.coerce.number().min(0).max(3).optional(),
+  reason: z.string().optional()
 });
 
 export async function updateCisOverride(formData: FormData) {
@@ -29,7 +32,8 @@ export async function updateCisOverride(formData: FormData) {
     cisSafeguardId: formData.get("cisSafeguardId"),
     manualOverride,
     manualStatus: formData.get("manualStatus"),
-    manualMaturityLevel: formData.get("manualMaturityLevel")
+    manualMaturityLevel: formData.get("manualMaturityLevel"),
+    reason: formData.get("reason")
   });
 
   if (!parsed.success) {
@@ -42,7 +46,7 @@ export async function updateCisOverride(formData: FormData) {
 
   const assessment = await prisma.assessment.findFirst({
     where: { id: parsed.data.assessmentId, deletedAt: null },
-    select: { id: true, organizationId: true }
+    select: { id: true, organizationId: true, editingMode: true }
   });
 
   if (!assessment) {
@@ -53,6 +57,37 @@ export async function updateCisOverride(formData: FormData) {
   if (!hasAccess) {
     return { error: "Sem acesso a organizacao" };
   }
+
+  const release = await prisma.assessmentRelease.findFirst({
+    where: { assessmentId: assessment.id },
+    orderBy: { createdAt: "desc" }
+  });
+  const releaseStatus = release?.status ?? null;
+  const canEdit = canEditAssessment({
+    role: session.user.role,
+    releaseStatus,
+    editingMode: assessment.editingMode
+  });
+  if (!canEdit) {
+    await logAuditEvent({
+      action: AuditAction.OTHER,
+      entityType: "Assessment",
+      entityId: assessment.id,
+      fieldName: "editingMode",
+      oldValue: assessment.editingMode,
+      newValue: assessment.editingMode,
+      organizationId: assessment.organizationId,
+      actor: { id: session.user.id, email: session.user.email, role: session.user.role },
+      requestContext: getRequestContext(),
+      success: false,
+      errorMessage: "Editing locked"
+    });
+    return { error: "Assessment bloqueado para edicao" };
+  }
+
+  const isAdminOverride =
+    session.user.role === Role.ADMIN &&
+    (isReleaseLocked(releaseStatus) || assessment.editingMode === EditingMode.LOCKED_ADMIN_ONLY);
 
   const safeguard = await prisma.cisSafeguard.findUnique({
     where: { id: parsed.data.cisSafeguardId },
@@ -122,8 +157,24 @@ export async function updateCisOverride(formData: FormData) {
     requestContext: getRequestContext(),
     before,
     after,
-    fields: ["manualOverride", "manualStatus", "manualMaturityLevel"]
+    fields: ["manualOverride", "manualStatus", "manualMaturityLevel"],
+    metadata: isAdminOverride ? { override: true, reason: parsed.data.reason } : undefined
   });
+
+  if (isAdminOverride) {
+    await logAuditEvent({
+      action: AuditAction.UPDATE,
+      entityType: "Assessment",
+      entityId: assessment.id,
+      fieldName: "editingOverride",
+      oldValue: release?.status ?? null,
+      newValue: "OVERRIDE",
+      organizationId: assessment.organizationId,
+      actor: { id: session.user.id, email: session.user.email, role: session.user.role },
+      requestContext: getRequestContext(),
+      metadata: parsed.data.reason ? { reason: parsed.data.reason } : { override: true }
+    });
+  }
 
   revalidatePath("/cis");
   revalidatePath("/compare");

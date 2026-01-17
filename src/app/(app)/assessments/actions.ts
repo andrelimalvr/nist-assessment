@@ -1,6 +1,6 @@
 "use server";
 
-import { DgLevel, Role, SsdfStatus } from "@prisma/client";
+import { AssessmentReleaseStatus, DgLevel, Role, SsdfStatus } from "@prisma/client";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
@@ -68,6 +68,14 @@ export async function createAssessment(formData: FormData) {
       reviewDate: parsed.data.reviewDate ? new Date(parsed.data.reviewDate) : null,
       notes: parsed.data.notes || null,
       createdById: session.user.id
+    }
+  });
+
+  await prisma.assessmentRelease.create({
+    data: {
+      assessmentId: assessment.id,
+      status: AssessmentReleaseStatus.DRAFT,
+      createdByUserId: session.user.id
     }
   });
 
