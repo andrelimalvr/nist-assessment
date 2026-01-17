@@ -1,7 +1,8 @@
 // Prisma schema for SSDF + CIS assessment app
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-arm64-openssl-3.0.x", "linux-musl-arm64-openssl-3.0.x"]
 }
 
 datasource db {
@@ -77,6 +78,12 @@ enum AssessmentReleaseStatus {
   APPROVED
 }
 
+enum AssessmentSnapshotType {
+  AUTO
+  MANUAL
+  APPROVED
+}
+
 enum EvidenceReviewStatus {
   PENDING
   APPROVED
@@ -103,6 +110,7 @@ model User {
   editingLocks Assessment[] @relation("AssessmentEditingLockedBy")
   assessmentReleasesCreated AssessmentRelease[] @relation("AssessmentReleaseCreatedBy")
   assessmentReleasesApproved AssessmentRelease[] @relation("AssessmentReleaseApprovedBy")
+  assessmentSnapshotsCreated AssessmentSnapshot[] @relation("AssessmentSnapshotCreatedBy")
   ssdfResultsUpdated AssessmentSsdfTaskResult[] @relation("SsdfResultUpdatedBy")
   cisResultsUpdated AssessmentCisResult[] @relation("CisResultUpdatedBy")
   userOrganizations UserOrganization[]
@@ -166,6 +174,7 @@ model Assessment {
   ssdfResults     AssessmentSsdfTaskResult[]
   cisResults      AssessmentCisResult[]
   releases        AssessmentRelease[]
+  snapshots       AssessmentSnapshot[]
 
   @@index([organizationId])
   @@index([deletedAt])
@@ -188,11 +197,32 @@ model AssessmentRelease {
   approvedByUserId String?                 @map("approved_by_user_id")
   approvedByUser   User?                   @relation("AssessmentReleaseApprovedBy", fields: [approvedByUserId], references: [id])
   snapshot         Json?                   @map("snapshot")
+  snapshots        AssessmentSnapshot[]
 
   @@index([assessmentId])
   @@index([status])
   @@index([baseReleaseId])
   @@map("assessment_releases")
+}
+
+model AssessmentSnapshot {
+  id              String                @id @default(cuid()) @map("id")
+  assessmentId    String                @map("assessment_id")
+  assessment      Assessment            @relation(fields: [assessmentId], references: [id])
+  releaseId       String?               @map("release_id")
+  release         AssessmentRelease?    @relation(fields: [releaseId], references: [id])
+  type            AssessmentSnapshotType @default(AUTO) @map("type")
+  label           String?               @map("label")
+  snapshot        Json                  @map("snapshot")
+  createdAt       DateTime              @default(now()) @map("created_at")
+  createdByUserId String?               @map("created_by_user_id")
+  createdByUser   User?                 @relation("AssessmentSnapshotCreatedBy", fields: [createdByUserId], references: [id])
+
+  @@index([assessmentId])
+  @@index([releaseId])
+  @@index([type])
+  @@index([createdAt])
+  @@map("assessment_snapshots")
 }
 
 model SsdfGroup {
