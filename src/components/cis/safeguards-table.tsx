@@ -1,21 +1,7 @@
-"use client";
-
-import { useMemo, useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import SortHeader from "@/components/table/sort-header";
+import SortableTableHeader from "@/components/table/sortable-table-header";
 import { formatNumber } from "@/lib/format";
 import { ptBR } from "@/lib/i18n/ptBR";
-import {
-  applySortDirection,
-  compareCisStatus,
-  compareControlId,
-  compareImplementationGroup,
-  compareNumbers,
-  compareSafeguardId,
-  compareSsdfId,
-  compareStringsLocale,
-  SortDirection
-} from "@/lib/sorters";
 
 type SafeguardRow = {
   safeguardId: string;
@@ -41,136 +27,93 @@ type SortKey =
   | "coverage"
   | "origin"
   | "sourceTask";
-
-type SortState = {
-  key: SortKey;
-  direction: SortDirection;
-};
+const DEFAULT_SORT_KEY: SortKey = "safeguardId";
 
 type SafeguardsTableProps = {
   rows: SafeguardRow[];
 };
 
 export default function SafeguardsTable({ rows }: SafeguardsTableProps) {
-  const [sort, setSort] = useState<SortState>({ key: "safeguardId", direction: "asc" });
-
-  const sortedRows = useMemo(() => {
-    const sorted = [...rows];
-    sorted.sort((a, b) => {
-      let result = 0;
-      switch (sort.key) {
-        case "safeguardId":
-          result = compareSafeguardId(a.safeguardId, b.safeguardId);
-          break;
-        case "controlId":
-          result = compareControlId(a.controlId, b.controlId);
-          break;
-        case "ig":
-          result = compareImplementationGroup(a.ig, b.ig);
-          break;
-        case "status":
-          result = compareCisStatus(a.statusKey, b.statusKey);
-          break;
-        case "maturity":
-          result = compareNumbers(a.maturity, b.maturity);
-          break;
-        case "coverage":
-          result = compareNumbers(a.coverage, b.coverage);
-          break;
-        case "origin":
-          result = compareStringsLocale(a.origin, b.origin, "pt-BR");
-          break;
-        case "sourceTask":
-          result = compareSsdfId(a.sourceTaskSortKey, b.sourceTaskSortKey);
-          break;
-        default:
-          result = 0;
-      }
-      return applySortDirection(result, sort.direction);
-    });
-    return sorted;
-  }, [rows, sort]);
-
-  const toggleSort = (key: SortKey) => {
-    setSort((prev) =>
-      prev.key === key
-        ? { key, direction: prev.direction === "asc" ? "desc" : "asc" }
-        : { key, direction: "asc" }
-    );
-  };
-
   return (
     <Table>
       <TableHeader>
         <TableRow>
           <TableHead>
-            <SortHeader
+            <SortableTableHeader
               label={ptBR.columns.safeguard}
-              active={sort.key === "safeguardId"}
-              direction={sort.direction}
-              onClick={() => toggleSort("safeguardId")}
+              sortKey="safeguardId"
+              defaultSortKey={DEFAULT_SORT_KEY}
+              paramKey="safeguardsSort"
+              dirParamKey="safeguardsDir"
             />
           </TableHead>
           <TableHead>
-            <SortHeader
+            <SortableTableHeader
               label={ptBR.columns.control}
-              active={sort.key === "controlId"}
-              direction={sort.direction}
-              onClick={() => toggleSort("controlId")}
+              sortKey="controlId"
+              defaultSortKey={DEFAULT_SORT_KEY}
+              paramKey="safeguardsSort"
+              dirParamKey="safeguardsDir"
             />
           </TableHead>
           <TableHead>
-            <SortHeader
+            <SortableTableHeader
               label={ptBR.columns.ig}
-              active={sort.key === "ig"}
-              direction={sort.direction}
-              onClick={() => toggleSort("ig")}
+              sortKey="ig"
+              defaultSortKey={DEFAULT_SORT_KEY}
+              paramKey="safeguardsSort"
+              dirParamKey="safeguardsDir"
             />
           </TableHead>
           <TableHead>
-            <SortHeader
+            <SortableTableHeader
               label={ptBR.columns.status}
-              active={sort.key === "status"}
-              direction={sort.direction}
-              onClick={() => toggleSort("status")}
+              sortKey="status"
+              defaultSortKey={DEFAULT_SORT_KEY}
+              paramKey="safeguardsSort"
+              dirParamKey="safeguardsDir"
             />
           </TableHead>
           <TableHead>
-            <SortHeader
+            <SortableTableHeader
               label={ptBR.columns.maturity}
-              active={sort.key === "maturity"}
-              direction={sort.direction}
-              onClick={() => toggleSort("maturity")}
+              sortKey="maturity"
+              defaultSortKey={DEFAULT_SORT_KEY}
+              paramKey="safeguardsSort"
+              dirParamKey="safeguardsDir"
             />
           </TableHead>
           <TableHead>
-            <SortHeader
+            <SortableTableHeader
               label={ptBR.columns.coverage}
-              active={sort.key === "coverage"}
-              direction={sort.direction}
-              onClick={() => toggleSort("coverage")}
+              sortKey="coverage"
+              defaultSortKey={DEFAULT_SORT_KEY}
+              paramKey="safeguardsSort"
+              dirParamKey="safeguardsDir"
             />
           </TableHead>
           <TableHead>
-            <SortHeader
+            <SortableTableHeader
               label={ptBR.columns.source}
-              active={sort.key === "origin"}
-              direction={sort.direction}
-              onClick={() => toggleSort("origin")}
+              sortKey="origin"
+              defaultSortKey={DEFAULT_SORT_KEY}
+              paramKey="safeguardsSort"
+              dirParamKey="safeguardsDir"
             />
           </TableHead>
           <TableHead>
-            <SortHeader
+            <SortableTableHeader
               label={ptBR.cis.relatedSsdf}
-              active={sort.key === "sourceTask"}
-              direction={sort.direction}
-              onClick={() => toggleSort("sourceTask")}
+              sortKey="sourceTask"
+              defaultSortKey={DEFAULT_SORT_KEY}
+              paramKey="safeguardsSort"
+              dirParamKey="safeguardsDir"
             />
           </TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
-        {sortedRows.map((row) => (
+        {rows.map((row) => (
           <TableRow key={row.safeguardId}>
             <TableCell className="font-medium">{row.safeguardLabel}</TableCell>
             <TableCell>{row.controlLabel}</TableCell>
@@ -184,7 +127,7 @@ export default function SafeguardsTable({ rows }: SafeguardsTableProps) {
             </TableCell>
           </TableRow>
         ))}
-        {sortedRows.length === 0 ? (
+        {rows.length === 0 ? (
           <TableRow>
             <TableCell colSpan={8} className="text-sm text-muted-foreground">
               {ptBR.cis.emptySafeguards}

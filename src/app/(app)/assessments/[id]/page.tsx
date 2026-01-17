@@ -13,6 +13,8 @@ import { isReleaseLocked } from "@/lib/assessment-release";
 import { canEditAssessment } from "@/lib/assessment-editing";
 import { ensureOrganizationAccess } from "@/lib/tenant";
 import { MAX_MATURITY_LEVEL } from "@/lib/ssdf";
+import RoadmapTopActions from "@/components/roadmap/roadmap-top-actions";
+import ExportMenu from "@/components/assessment/export-menu";
 
 export default async function AssessmentDetailPage({
   params,
@@ -95,6 +97,17 @@ export default async function AssessmentDetailPage({
     orderBy: { ssdfTaskId: "asc" }
   });
 
+  const topActionsRaw = await prisma.assessmentSsdfTaskResult.findMany({
+    where: { assessmentId: assessment.id, status: { not: SsdfStatus.NOT_APPLICABLE } },
+    include: {
+      ssdfTask: {
+        include: {
+          practice: { include: { group: true } }
+        }
+      }
+    }
+  });
+
   const release = await prisma.assessmentRelease.findFirst({
     where: { assessmentId: assessment.id },
     orderBy: { createdAt: "desc" }
@@ -123,8 +136,8 @@ export default async function AssessmentDetailPage({
     maturityLevel: response.maturityLevel,
     targetLevel: response.targetLevel,
     weight: response.weight,
-    gap: response.targetLevel - response.maturityLevel,
-    priority: (response.targetLevel - response.maturityLevel) * response.weight,
+    gap: Math.max(response.targetLevel - response.maturityLevel, 0),
+    priority: Math.max(response.targetLevel - response.maturityLevel, 0) * response.weight,
     progressWeighted:
       (response.maturityLevel / MAX_MATURITY_LEVEL) * response.weight,
     owner: response.owner,
@@ -136,15 +149,37 @@ export default async function AssessmentDetailPage({
     comments: response.comments
   }));
 
+  const topActions = topActionsRaw
+    .map((response) => {
+      const gap = Math.max(response.targetLevel - response.maturityLevel, 0);
+      const priority = gap * response.weight;
+      return {
+        id: response.id,
+        groupId: response.ssdfTask.practice.group.id,
+        taskId: response.ssdfTask.id,
+        taskName: response.ssdfTask.name,
+        gap,
+        weight: response.weight,
+        priority,
+        statusLabel: response.status,
+        owner: response.owner
+      };
+    })
+    .sort((a, b) => b.priority - a.priority)
+    .slice(0, 10);
+
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-semibold" style={{ fontFamily: "var(--font-display)" }}>
-          Assessment
-        </h1>
-        <p className="text-muted-foreground">
-          {assessment.organization.name} - {assessment.name} - {assessment.unit} - {assessment.scope}
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-semibold" style={{ fontFamily: "var(--font-display)" }}>
+            Assessment
+          </h1>
+          <p className="text-muted-foreground">
+            {assessment.organization.name} - {assessment.name} - {assessment.unit} - {assessment.scope}
+          </p>
+        </div>
+        <ExportMenu assessmentId={assessment.id} />
       </div>
 
       {showReadOnlyBanner ? (
@@ -203,6 +238,15 @@ export default async function AssessmentDetailPage({
               Edicoes bloqueadas enquanto o assessment estiver em revisao ou aprovado.
             </p>
           ) : null}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Top 10 proximas acoes</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <RoadmapTopActions rows={topActions} />
         </CardContent>
       </Card>
 

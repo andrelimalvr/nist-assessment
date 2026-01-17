@@ -12,7 +12,9 @@ import ControlSummaryTable from "@/components/cis/control-summary-table";
 import SafeguardsTable from "@/components/cis/safeguards-table";
 import { getCisStatusLabel, getControlDisplay, getSafeguardDisplay, ptBR } from "@/lib/i18n/ptBR";
 import { compareSsdfId } from "@/lib/sorters";
+import type { SortDirection } from "@/lib/sorters";
 import { canEditAssessment } from "@/lib/assessment-editing";
+import { sortRows } from "@/lib/table-sorting";
 
 type IgStats = {
   total: number;
@@ -22,7 +24,7 @@ type IgStats = {
 export default async function CisDashboardPage({
   searchParams
 }: {
-  searchParams?: { assessmentId?: string };
+  searchParams?: { assessmentId?: string; safeguardsSort?: string; safeguardsDir?: string };
 }) {
   const session = await getServerSession(authOptions);
   const accessibleOrgIds = await getAccessibleOrganizationIds(session);
@@ -200,6 +202,38 @@ export default async function CisDashboardPage({
     };
   });
 
+  const allowedSafeguardSorts = new Set([
+    "safeguardId",
+    "controlId",
+    "ig",
+    "status",
+    "maturity",
+    "coverage",
+    "origin",
+    "sourceTask"
+  ]);
+  const safeguardSortKey =
+    searchParams?.safeguardsSort && allowedSafeguardSorts.has(searchParams.safeguardsSort)
+      ? searchParams.safeguardsSort
+      : "safeguardId";
+  const safeguardDirection: SortDirection =
+    searchParams?.safeguardsDir === "desc"
+      ? "desc"
+      : searchParams?.safeguardsDir === "asc"
+        ? "asc"
+        : "asc";
+
+  const sortedSafeguards = sortRows(safeguardsRows, safeguardSortKey, safeguardDirection, {
+    safeguardId: { type: "safeguardId", accessor: (row) => row.safeguardId },
+    controlId: { type: "controlId", accessor: (row) => row.controlId },
+    ig: { type: "ig", accessor: (row) => row.ig },
+    status: { type: "cisStatus", accessor: (row) => row.statusKey },
+    maturity: { type: "number", accessor: (row) => row.maturity },
+    coverage: { type: "number", accessor: (row) => row.coverage },
+    origin: { type: "stringLocale", accessor: (row) => row.origin },
+    sourceTask: { type: "ssdfId", accessor: (row) => row.sourceTaskSortKey }
+  });
+
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -324,7 +358,7 @@ export default async function CisDashboardPage({
           <CardTitle>{ptBR.cis.summaryTitle}</CardTitle>
         </CardHeader>
         <CardContent>
-          <ControlSummaryTable rows={controlSummary} />
+          <ControlSummaryTable rows={controlSummary} assessmentId={selected.id} />
         </CardContent>
       </Card>
 
@@ -333,7 +367,7 @@ export default async function CisDashboardPage({
           <CardTitle>{ptBR.cis.safeguardsTitle}</CardTitle>
         </CardHeader>
         <CardContent>
-          <SafeguardsTable rows={safeguardsRows} />
+          <SafeguardsTable rows={sortedSafeguards} />
         </CardContent>
       </Card>
     </div>

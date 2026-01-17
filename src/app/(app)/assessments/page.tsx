@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { getServerSession } from "next-auth";
-import { DgLevel, Role } from "@prisma/client";
+import { AssessmentReleaseStatus, DgLevel, Role } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { canEdit } from "@/lib/rbac";
 import { getAccessibleOrganizationIds } from "@/lib/tenant";
+import { canEditAssessment } from "@/lib/assessment-editing";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { createAssessment } from "@/app/(app)/assessments/actions";
 import { formatDate } from "@/lib/format";
 import DeleteAssessmentButton from "@/components/assessments/delete-assessment-button";
+import AssessmentEditDialog from "@/components/assessments/assessment-edit-dialog";
 
 export default async function AssessmentsPage() {
   const session = await getServerSession(authOptions);
@@ -40,6 +42,21 @@ export default async function AssessmentsPage() {
     include: { organization: true },
     orderBy: { createdAt: "desc" }
   });
+
+  const releaseStatuses = assessments.length
+    ? await prisma.assessmentRelease.findMany({
+        where: { assessmentId: { in: assessments.map((assessment) => assessment.id) } },
+        orderBy: { createdAt: "desc" },
+        select: { assessmentId: true, status: true }
+      })
+    : [];
+
+  const releaseStatusByAssessmentId = new Map<string, AssessmentReleaseStatus>();
+  for (const release of releaseStatuses) {
+    if (!releaseStatusByAssessmentId.has(release.assessmentId)) {
+      releaseStatusByAssessmentId.set(release.assessmentId, release.status);
+    }
+  }
 
   return (
     <div className="space-y-8">
@@ -149,31 +166,68 @@ export default async function AssessmentsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {assessments.map((assessment) => (
-                <TableRow key={assessment.id}>
-                  <TableCell className="font-semibold">{assessment.organization.name}</TableCell>
-                  <TableCell>{assessment.name}</TableCell>
-                  <TableCell>{assessment.unit}</TableCell>
-                  <TableCell>{assessment.scope}</TableCell>
-                  <TableCell>{assessment.assessmentOwner}</TableCell>
-                  <TableCell>{formatDate(assessment.startDate)}</TableCell>
-                  <TableCell>{formatDate(assessment.reviewDate)}</TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Button asChild size="sm">
-                        <Link href={`/assessments/${assessment.id}`}>Abrir</Link>
-                      </Button>
-                      {isAdmin ? (
-                        <DeleteAssessmentButton
-                          assessmentId={assessment.id}
-                          assessmentName={assessment.name}
-                          organizationName={assessment.organization.name}
-                        />
-                      ) : null}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {assessments.map((assessment) => {
+                const releaseStatus =
+                  releaseStatusByAssessmentId.get(assessment.id) ?? AssessmentReleaseStatus.DRAFT;
+                const canEditRow =
+                  session?.user?.role === Role.ADMIN
+                    ? true
+                    : canEditAssessment({
+                        role: session?.user?.role,
+                        releaseStatus,
+                        editingMode: assessment.editingMode
+                      });
+                const showEdit = session?.user?.role === Role.ADMIN || session?.user?.role === Role.ASSESSOR;
+                return (
+                  <TableRow key={assessment.id}>
+                    <TableCell className="font-semibold">{assessment.organization.name}</TableCell>
+                    <TableCell>{assessment.name}</TableCell>
+                    <TableCell>{assessment.unit}</TableCell>
+                    <TableCell>{assessment.scope}</TableCell>
+                    <TableCell>{assessment.assessmentOwner}</TableCell>
+                    <TableCell>{formatDate(assessment.startDate)}</TableCell>
+                    <TableCell>{formatDate(assessment.reviewDate)}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button asChild size="sm">
+                          <Link href={`/assessments/${assessment.id}`}>Abrir</Link>
+                        </Button>
+                        {showEdit ? (
+                          <AssessmentEditDialog
+                            assessment={{
+                              id: assessment.id,
+                              organizationId: assessment.organizationId,
+                              name: assessment.name,
+                              unit: assessment.unit,
+                              scope: assessment.scope,
+                              assessmentOwner: assessment.assessmentOwner,
+                              dgLevel: assessment.dgLevel,
+                              startDate: assessment.startDate.toISOString(),
+                              reviewDate: assessment.reviewDate ? assessment.reviewDate.toISOString() : null,
+                              notes: assessment.notes
+                            }}
+                            organizations={organizations.map((org) => ({ id: org.id, name: org.name }))}
+                            canEdit={canEditRow}
+                            isAdmin={isAdmin}
+                            disabledReason={
+                              !canEditRow && !isAdmin
+                                ? "Edicao bloqueada pelo admin ou pelo status de publicacao"
+                                : null
+                            }
+                          />
+                        ) : null}
+                        {isAdmin ? (
+                          <DeleteAssessmentButton
+                            assessmentId={assessment.id}
+                            assessmentName={assessment.name}
+                            organizationName={assessment.organization.name}
+                          />
+                        ) : null}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
               {assessments.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8} className="text-sm text-muted-foreground">

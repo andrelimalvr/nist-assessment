@@ -1,14 +1,20 @@
 import AssessmentPicker from "@/components/assessment/assessment-picker";
 import ExportMenu from "@/components/assessment/export-menu";
+import RoadmapTopActions from "@/components/roadmap/roadmap-top-actions";
+import DrilldownDrawer from "@/components/assessment/drilldown-drawer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatNumber, formatPercent } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
-import { Role } from "@prisma/client";
+import { Role, SsdfStatus } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { getAccessibleOrganizationIds } from "@/lib/tenant";
-import { buildAssessmentSnapshot, getLatestApprovedRelease, AssessmentSnapshot } from "@/lib/assessment-release";
+import {
+  buildAssessmentSnapshot,
+  getLatestApprovedSnapshot,
+  AssessmentSnapshot
+} from "@/lib/assessment-release";
 
 export default async function DashboardPage({
   searchParams
@@ -52,16 +58,42 @@ export default async function DashboardPage({
   let approvedReleaseId: string | null = null;
 
   if (view === "official") {
-    const approved = await getLatestApprovedRelease(selected.id);
+    const approved = await getLatestApprovedSnapshot(selected.id);
     if (approved?.snapshot) {
       snapshot = approved.snapshot as AssessmentSnapshot;
-      approvedReleaseId = approved.id;
+      approvedReleaseId = approved.releaseId ?? approved.id;
     }
   } else {
     snapshot = await buildAssessmentSnapshot(selected.id);
   }
 
   const showMetrics = view === "draft" || approvedReleaseId !== null;
+
+  const topActionsRaw = await prisma.assessmentSsdfTaskResult.findMany({
+    where: { assessmentId: selected.id, status: { not: SsdfStatus.NOT_APPLICABLE } },
+    include: {
+      ssdfTask: { include: { practice: { include: { group: true } } } }
+    }
+  });
+
+  const topActions = topActionsRaw
+    .map((response) => {
+      const gap = Math.max(response.targetLevel - response.maturityLevel, 0);
+      const priority = gap * response.weight;
+      return {
+        id: response.id,
+        groupId: response.ssdfTask.practice.group.id,
+        taskId: response.ssdfTask.id,
+        taskName: response.ssdfTask.name,
+        gap,
+        weight: response.weight,
+        priority,
+        statusLabel: response.status,
+        owner: response.owner
+      };
+    })
+    .sort((a, b) => b.priority - a.priority)
+    .slice(0, 10);
   const stats = snapshot?.groupStats ?? [];
   const totals =
     snapshot?.totals ?? { total: 0, applicable: 0, implemented: 0, weightedProgress: 0, weightSum: 0 };
@@ -101,7 +133,7 @@ export default async function DashboardPage({
             basePath="/dashboard"
             extraParams={{ view }}
           />
-          <ExportMenu assessmentId={selected.id} />
+          <ExportMenu assessmentId={selected.id} reportView={view} />
         </div>
       </div>
 
@@ -197,7 +229,15 @@ export default async function DashboardPage({
                   const weightedScore = group.weightSum > 0 ? group.weightedProgress / group.weightSum : 0;
                   return (
                     <TableRow key={group.id}>
-                      <TableCell className="font-semibold">{group.id}</TableCell>
+                      <TableCell className="font-semibold">
+                        <DrilldownDrawer
+                          assessmentId={selected.id}
+                          type="group"
+                          targetId={group.id}
+                          label={group.id}
+                          className="font-semibold text-primary hover:underline"
+                        />
+                      </TableCell>
                       <TableCell>{group.total}</TableCell>
                       <TableCell>{group.applicable}</TableCell>
                       <TableCell>{group.implemented}</TableCell>
@@ -216,6 +256,17 @@ export default async function DashboardPage({
                 </TableRow>
               </TableBody>
             </Table>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {showMetrics ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Top 10 proximas acoes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <RoadmapTopActions rows={topActions} />
           </CardContent>
         </Card>
       ) : null}

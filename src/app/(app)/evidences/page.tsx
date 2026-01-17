@@ -11,11 +11,13 @@ import { evidenceTypeOptions } from "@/lib/ssdf";
 import { createEvidence } from "@/app/(app)/evidences/actions";
 import { getAccessibleOrganizationIds } from "@/lib/tenant";
 import { canEditAssessment } from "@/lib/assessment-editing";
+import { sortRows } from "@/lib/table-sorting";
+import type { SortDirection } from "@/lib/sorters";
 
 export default async function EvidencesPage({
   searchParams
 }: {
-  searchParams?: { assessmentId?: string };
+  searchParams?: { assessmentId?: string; sort?: string; dir?: string };
 }) {
   const session = await getServerSession(authOptions);
 
@@ -99,6 +101,37 @@ export default async function EvidencesPage({
     validUntilValue: evidence.validUntil ? evidence.validUntil.getTime() : 0,
     notes: evidence.notes
   }));
+
+  const allowedSortKeys = new Set([
+    "taskId",
+    "type",
+    "description",
+    "owner",
+    "date",
+    "validUntil"
+  ]);
+  const defaultSortKey = "date";
+  const sortKey =
+    searchParams?.sort && allowedSortKeys.has(searchParams.sort)
+      ? searchParams.sort
+      : defaultSortKey;
+  const direction: SortDirection =
+    searchParams?.dir === "asc"
+      ? "asc"
+      : searchParams?.dir === "desc"
+        ? "desc"
+        : sortKey === defaultSortKey
+          ? "desc"
+          : "asc";
+
+  const sortedEvidenceRows = sortRows(evidenceRows, sortKey, direction, {
+    taskId: { type: "ssdfId", accessor: (row) => row.taskId },
+    type: { type: "stringLocale", accessor: (row) => row.type },
+    description: { type: "stringLocale", accessor: (row) => row.description },
+    owner: { type: "stringLocale", accessor: (row) => row.owner },
+    date: { type: "number", accessor: (row) => row.dateValue },
+    validUntil: { type: "number", accessor: (row) => row.validUntilValue }
+  });
 
   return (
     <div className="space-y-8">
@@ -217,7 +250,7 @@ export default async function EvidencesPage({
           <CardTitle>Evidencias registradas</CardTitle>
         </CardHeader>
         <CardContent>
-          <EvidenceTable rows={evidenceRows} canEdit={canEdit} />
+          <EvidenceTable rows={sortedEvidenceRows} canEdit={canEdit} />
         </CardContent>
       </Card>
     </div>

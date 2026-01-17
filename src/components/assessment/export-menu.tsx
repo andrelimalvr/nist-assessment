@@ -11,18 +11,23 @@ import {
 
 type ExportMenuProps = {
   assessmentId: string;
+  reportView?: "draft" | "official";
 };
 
 const formats = [
+  { value: "pdf", label: "Relatorio PDF" },
   { value: "xlsx", label: "Excel (XLSX)" },
   { value: "csv", label: "CSV" },
   { value: "json", label: "JSON" },
   { value: "tsv", label: "TSV" }
 ];
 
-export default function ExportMenu({ assessmentId }: ExportMenuProps) {
+export default function ExportMenu({ assessmentId, reportView }: ExportMenuProps) {
   const download = (format: string) => {
-    const url = `/api/exports/assessment/${assessmentId}?format=${format}`;
+    const url =
+      format === "pdf"
+        ? `/api/reports/assessment/${assessmentId}/pdf${reportView === "official" ? "?view=official" : ""}`
+        : `/api/exports/assessment/${assessmentId}?format=${format}`;
     window.location.href = url;
   };
 

@@ -100,10 +100,12 @@ export async function POST(
     notes: parsed.data.notes || null
   };
 
+  let snapshotData = null as Awaited<ReturnType<typeof buildAssessmentSnapshot>> | null;
   if (nextStatus === AssessmentReleaseStatus.APPROVED) {
     updateData.approvedAt = new Date();
     updateData.approvedByUserId = session.user.id;
-    updateData.snapshot = await buildAssessmentSnapshot(assessment.id);
+    snapshotData = await buildAssessmentSnapshot(assessment.id);
+    updateData.snapshot = snapshotData;
   }
 
   if (nextStatus === AssessmentReleaseStatus.DRAFT) {
@@ -115,6 +117,33 @@ export async function POST(
     where: { id: release.id },
     data: updateData
   });
+
+  if (nextStatus === AssessmentReleaseStatus.APPROVED && snapshotData) {
+    const snapshotRecord = await prisma.assessmentSnapshot.create({
+      data: {
+        assessmentId: assessment.id,
+        releaseId: updated.id,
+        type: "APPROVED",
+        label: parsed.data.notes || null,
+        snapshot: snapshotData,
+        createdByUserId: session.user.id
+      }
+    });
+
+    await logAuditEvent({
+      action: AuditAction.CREATE,
+      entityType: "AssessmentSnapshot",
+      entityId: snapshotRecord.id,
+      organizationId: assessment.organizationId,
+      actor: { id: session.user.id, email: session.user.email, role: session.user.role },
+      requestContext: { ...getRequestContext(), route: new URL(request.url).pathname },
+      metadata: {
+        assessmentId: assessment.id,
+        releaseId: updated.id,
+        type: "APPROVED"
+      }
+    });
+  }
 
   await logAuditEvent({
     action: AuditAction.UPDATE,

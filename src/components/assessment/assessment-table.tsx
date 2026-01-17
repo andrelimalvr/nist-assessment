@@ -140,11 +140,11 @@ export default function AssessmentTable({
             <TableHead>Tarefa</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Aplicavel</TableHead>
-            <TableHead>Maturidade</TableHead>
-            <TableHead>Alvo</TableHead>
-            <TableHead>Gap</TableHead>
-            <TableHead>Peso</TableHead>
-            <TableHead>Prioridade</TableHead>
+            <TableHead title="Nivel atual de maturidade da tarefa">Maturidade</TableHead>
+            <TableHead title="Meta desejada para maturidade">Alvo</TableHead>
+            <TableHead title="Gap = max(Alvo - Maturidade, 0)">Gap</TableHead>
+            <TableHead title="Peso usado para priorizacao e score">Peso</TableHead>
+            <TableHead title="Prioridade = Gap * Peso">Prioridade</TableHead>
             <TableHead>Resp.</TableHead>
             <TableHead>Area/Time</TableHead>
             <TableHead>Acoes</TableHead>

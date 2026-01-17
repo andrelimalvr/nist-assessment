@@ -1,0 +1,609 @@
+{
+  "title": "Documentacao SSDF Compass (NIST SSDF + CIS Secure by Design)",
+  "updatedAt": "2026-01-17",
+  "sections": [
+    {
+      "id": "conceitos",
+      "title": "Conceitos",
+      "summary": "Fundamentos do SSDF, CIS e termos essenciais para entender o assessment.",
+      "items": [
+        {
+          "id": "conceitos-visao-geral",
+          "title": "Visao geral do SSDF Compass",
+          "paragraphs": [
+            "O SSDF Compass e uma plataforma para executar assessments de Secure Software Development com base no NIST SSDF (NIST SP 800-218) e refletir automaticamente os resultados no comparativo com CIS Controls - Secure by Design.",
+            "O assessment e organizado em grupos (PO, PS, PW, RV), praticas e tarefas. As tarefas sao a unidade avaliavel: voce marca aplicavel, status, maturidade, alvo e evidencia."
+          ],
+          "bullets": [
+            "Grupos: PO, PS, PW, RV.",
+            "Praticas: agrupamentos tematicos.",
+            "Tarefas: itens avaliaveis com evidencias."
+          ]
+        },
+        {
+          "id": "conceitos-ssdf",
+          "title": "SSDF, praticas e tarefas",
+          "paragraphs": [
+            "O SSDF (Secure Software Development Framework) organiza atividades de seguranca em quatro grupos: PO (Preparar a organizacao), PS (Proteger o software), PW (Produzir software seguro) e RV (Responder a vulnerabilidades).",
+            "Cada grupo contem Praticas, e cada pratica contem Tarefas. No sistema, as tarefas sao o nivel mais operacional: e nelas que voce marca status, maturidade, alvo e evidencia.",
+            "Exemplo: PO.1 e uma pratica, PO.1.2 pode ser uma tarefa com nome e descricao detalhada."
+          ],
+          "bullets": [
+            "Grupo: categoria macro (PO, PS, PW, RV).",
+            "Pratica: conjunto de tarefas com objetivo comum.",
+            "Tarefa: item avaliavel com evidencias e status."
+          ]
+        },
+        {
+          "id": "conceitos-cis",
+          "title": "CIS Secure by Design, Controls e Safeguards",
+          "paragraphs": [
+            "O CIS Secure by Design organiza recomendacoes em Controls e Safeguards. Controls sao categorias amplas; Safeguards sao acoes especificas que podem ser mapeadas para tarefas SSDF.",
+            "No sistema, parte das Safeguards pode ser derivada automaticamente do SSDF por mapeamento; o restante pode exigir avaliacao manual.",
+            "Esse mapeamento aparece nos modulos Controles CIS e Comparativo."
+          ],
+          "bullets": [
+            "Control: numero inteiro (ex.: 10) com tema principal.",
+            "Safeguard: numero com parte decimal (ex.: 10.1), mais detalhado.",
+            "IG: Implementation Group (IG1, IG2, IG3) define nivel de prioridade e maturidade esperada."
+          ]
+        },
+        {
+          "id": "conceitos-dg",
+          "title": "Development Groups (DG1, DG2, DG3)",
+          "paragraphs": [
+            "DG define a profundidade e o tipo de evidencia esperado. Quanto maior o DG, maior o rigor de engenharia segura e rastreabilidade.",
+            "Use DG1 para escopos com baixo risco e alta dependencia de software pronto, DG2 para escopos com software customizado relevante, e DG3 para software critico ao negocio."
+          ],
+          "levels": [
+            {
+              "label": "DG1",
+              "description": "Baixo risco. Pequenas customizacoes, foco em praticas operacionais e controles essenciais."
+            },
+            {
+              "label": "DG2",
+              "description": "Software customizado relevante. Evidencias consistentes, engenharia segura e manutencao de dependencias."
+            },
+            {
+              "label": "DG3",
+              "description": "Software critico. Governanca forte, evidencias robustas, metricas e melhoria continua."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "como-fazer",
+      "title": "Como fazer o assessment",
+      "summary": "Passo a passo para configurar, avaliar tarefas e publicar resultados.",
+      "items": [
+        {
+          "id": "como-fazer-configuracao",
+          "title": "Defina o escopo e o contexto",
+          "paragraphs": [
+            "Comece criando o assessment com organizacao, escopo, unidade/area, responsavel e datas. Escolha o DG adequado para calibrar a expectativa de maturidade.",
+            "O escopo deve ser especifico: produtos, plataformas, squads ou linhas de negocio. Isso evita evidencias genericas."
+          ],
+          "bullets": [
+            "Organizacao: empresa ou unidade responsavel.",
+            "Escopo: o que esta dentro (e fora) da avaliacao.",
+            "Unidade/Area: time principal dono do assessment.",
+            "Responsavel: quem coordena o levantamento de evidencias.",
+            "Datas: inicio e revisao planejada.",
+            "DG: nivel de rigor e profundidade de evidencias."
+          ]
+        },
+        {
+          "id": "como-fazer-filtros",
+          "title": "Selecione filtros e priorize",
+          "paragraphs": [
+            "Use filtros por Grupo, Pratica, Status, Aplicavel, Responsavel e Area/Time para focar no que tem maior risco ou impacto.",
+            "Filtrar por grupo ajuda a concentrar revisoes por PO, PS, PW ou RV."
+          ],
+          "bullets": [
+            "Grupo: PO, PS, PW, RV.",
+            "Pratica: agrupamento tematico.",
+            "Status: Nao iniciado, Em andamento, Implementado, Nao aplicavel.",
+            "Aplicavel: reduz o ruido no roadmap.",
+            "Responsavel e Area/Time: alocacao de dono."
+          ]
+        },
+        {
+          "id": "como-fazer-tarefas",
+          "title": "Preencha as tarefas do SSDF",
+          "paragraphs": [
+            "Para cada tarefa, marque se ela e aplicavel. Se nao for, use o status Nao aplicavel e registre o motivo em observacoes.",
+            "Depois, defina status atual, maturidade, alvo, peso e prioridade. Registre evidencias e atribua responsaveis para garantir rastreabilidade.",
+            "Gap e prioridade sao calculos que ajudam a priorizar o roadmap."
+          ],
+          "bullets": [
+            "Status: Nao iniciado, Em andamento, Implementado ou Nao aplicavel.",
+            "Maturidade: nivel atual (0 a 3).",
+            "Alvo: nivel desejado (0 a 3).",
+            "Peso: impacto no score e na prioridade.",
+            "Evidencias: links, documentos, tickets e artefatos.",
+            "Responsavel e Area/Time: quem executa e acompanha."
+          ]
+        },
+        {
+          "id": "como-fazer-publicacao",
+          "title": "Publicacao e revisao",
+          "paragraphs": [
+            "O ciclo de publicacao tem tres estados: Rascunho, Em revisao e Aprovado. Em revisao e aprovado, edicoes ficam bloqueadas para assessores.",
+            "Se um assessment aprovado precisar de ajustes, o admin deve liberar edicao criando uma nova revisao em rascunho. Isso preserva a trilha de auditoria.",
+            "Aprovacoes registram quem aprovou e quando, garantindo historico."
+          ],
+          "bullets": [
+            "Rascunho: edicao aberta para assessores (se liberado).",
+            "Em revisao: bloqueia edicao para assessores.",
+            "Aprovado: resultado oficial publicado.",
+            "Liberar edicao: cria nova revisao DRAFT com auditoria.",
+            "Bloquear edicao: somente admin pode editar."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "campos-niveis",
+      "title": "Campos e niveis",
+      "summary": "Glossario dos campos do assessment e como interpretar niveis e calculos.",
+      "items": [
+        {
+          "id": "campos-grupo",
+          "title": "Grupo (PO, PS, PW, RV)",
+          "paragraphs": [
+            "Grupo identifica a macro area do SSDF. Cada grupo concentra praticas com objetivos similares.",
+            "Use o grupo para organizar filtros e revisar resultados por dominio."
+          ],
+          "bullets": [
+            "PO: governanca, requisitos, papeis, toolchains e politicas.",
+            "PS: protecao de codigo, releases, integridade e proveniencia.",
+            "PW: design seguro, implementacao, revisao e testes.",
+            "RV: resposta a vulnerabilidades, correcoes e aprendizado."
+          ]
+        },
+        {
+          "id": "campos-pratica-tarefa",
+          "title": "Pratica e tarefa",
+          "paragraphs": [
+            "Pratica e um agrupamento tematico. Tarefa e a atividade avaliavel que recebe status, maturidade e evidencias.",
+            "Exemplo: uma pratica PO.3 pode conter tarefas PO.3.1, PO.3.2 e PO.3.3."
+          ]
+        },
+        {
+          "id": "campos-aplicavel",
+          "title": "Aplicavel (Sim/Nao)",
+          "paragraphs": [
+            "Aplicavel indica se a tarefa faz sentido no seu escopo. Use Nao aplicavel somente quando a tarefa realmente nao se aplica.",
+            "Tarefas nao aplicaveis nao entram no calculo de cobertura."
+          ],
+          "bullets": [
+            "Registre o motivo quando marcar Nao aplicavel.",
+            "Evite usar Nao aplicavel para tarefas apenas atrasadas."
+          ]
+        },
+        {
+          "id": "campos-status",
+          "title": "Status e aplicabilidade",
+          "paragraphs": [
+            "Status descreve o andamento da tarefa. Use Nao aplicavel apenas quando a tarefa realmente nao se aplica ao escopo.",
+            "Aplicavel e derivado do status: tudo exceto Nao aplicavel e considerado aplicavel."
+          ],
+          "levels": [
+            {
+              "label": "Nao iniciado",
+              "description": "A tarefa ainda nao teve implementacao ou evidencia." 
+            },
+            {
+              "label": "Em andamento",
+              "description": "Existe trabalho em curso, evidencias parciais ou controles incompletos."
+            },
+            {
+              "label": "Implementado",
+              "description": "Requisitos atendidos e evidencias completas."
+            },
+            {
+              "label": "Nao aplicavel",
+              "description": "A tarefa nao faz sentido no escopo atual."
+            }
+          ]
+        },
+        {
+          "id": "campos-maturidade",
+          "title": "Maturidade (0 a 3)",
+          "paragraphs": [
+            "Maturidade indica o nivel atual de implementacao da tarefa. O nivel depende da consistencia e da qualidade das evidencias, nao apenas da existencia do processo.",
+            "Use a escala 0 a 3 como guia geral, ajustando conforme o DG do assessment."
+          ],
+          "levels": [
+            {
+              "label": "0",
+              "description": "Inexistente ou ad-hoc. Sem evidencia valida ou processo definido."
+            },
+            {
+              "label": "1",
+              "description": "Definido. Ha politica ou guideline minimo, evidencias pontuais e responsabilidade inicial."
+            },
+            {
+              "label": "2",
+              "description": "Implementado e repetivel. Execucao consistente, rastreavel e com evidencias recorrentes."
+            },
+            {
+              "label": "3",
+              "description": "Otimizado e mensurado. Processo monitorado com metricas, tendencias e melhoria continua."
+            }
+          ]
+        },
+        {
+          "id": "campos-alvo",
+          "title": "Alvo (0 a 3)",
+          "paragraphs": [
+            "Alvo define o nivel desejado para a tarefa. Ele orienta o plano de melhoria e deve ser realista para o ciclo atual.",
+            "Alvo maior que maturidade gera gap e aumenta a prioridade.",
+            "O alvo pode variar conforme a criticidade do sistema e o DG."
+          ]
+        },
+        {
+          "id": "campos-gap-prioridade",
+          "title": "Gap e prioridade",
+          "paragraphs": [
+            "Gap e a diferenca entre alvo e maturidade. Prioridade e calculada como gap x peso, destacando o que deve ser atacado primeiro.",
+            "Use prioridade para ordenar o Roadmap."
+          ],
+          "bullets": [
+            "Recomendado: Gap = max(Alvo - Maturidade, 0).",
+            "Prioridade = Gap x Peso.",
+            "Se usar formula simples, gap negativo indica que a tarefa esta acima do alvo.",
+            "Opcional: traduza prioridade numerica em P0/P1/P2/P3 para comunicacao executiva.",
+            "P0: critico (risco alto + exposicao + obrigacao).",
+            "P1: alto (risco alto ou impacto alto).",
+            "P2: medio (melhora relevante, nao urgente).",
+            "P3: baixo (otimizacao).",
+            "Se usar numero (0-4), documente a equivalencia."
+          ]
+        },
+        {
+          "id": "campos-roadmap",
+          "title": "Roadmap (colunas principais)",
+          "paragraphs": [
+            "O Roadmap ordena tarefas por prioridade e gap para orientar o plano de acao.",
+            "Use as colunas para decidir sequencia de execucao e donos."
+          ],
+          "bullets": [
+            "Prioridade: gap x peso (ou P0/P1/P2/P3).",
+            "Grupo e Tarefa: contexto do SSDF.",
+            "Gap: distancia entre alvo e maturidade.",
+            "Peso: impacto no score.",
+            "Status e Responsavel: andamento e dono."
+          ]
+        },
+        {
+          "id": "campos-peso",
+          "title": "Peso",
+          "paragraphs": [
+            "Peso representa impacto no score e na prioridade. Use pesos maiores para tarefas criticas ou obrigatorias.",
+            "O score ponderado do dashboard usa a maturidade multiplicada pelo peso."
+          ],
+          "levels": [
+            {
+              "label": "1",
+              "description": "Baixo impacto."
+            },
+            {
+              "label": "3",
+              "description": "Impacto medio."
+            },
+            {
+              "label": "5",
+              "description": "Impacto alto e prioridade estrategica."
+            }
+          ]
+        },
+        {
+          "id": "campos-cobertura",
+          "title": "Cobertura (%)",
+          "paragraphs": [
+            "Cobertura e usada nos modulos CIS e dashboard. Ela representa o quanto das tarefas/salvaguardas aplicaveis foram implementadas.",
+            "No CIS, a cobertura pode ser derivada automaticamente do SSDF via mapeamento."
+          ],
+          "examples": [
+            "Exemplo: 30 tarefas aplicaveis, 20 implementadas = 66.7% de cobertura.",
+            "No CIS: cobertura media por controle considera as salvaguardas mapeadas.",
+            "Formulas tipicas: Implementadas / Aplicaveis.",
+            "Cobertura pode ser calculada por grupo (PO/PS/PW/RV) e global."
+          ]
+        },
+        {
+          "id": "campos-override",
+          "title": "Override e ajustes manuais",
+          "paragraphs": [
+            "Override e a possibilidade de substituir resultados derivados (ex.: CIS) quando a realidade do time diverge do mapeamento automatico.",
+            "Use override apenas com justificativa clara e registre o motivo para auditoria."
+          ],
+          "bullets": [
+            "Quando usar: divergencia comprovada entre SSDF e CIS.",
+            "Evite override sem evidencia ou sem motivo documentado.",
+            "Exiba indicador visual para overrides no dashboard/tabelas."
+          ]
+        },
+        {
+          "id": "campos-responsavel-time",
+          "title": "Responsavel e Area/Time",
+          "paragraphs": [
+            "Responsavel identifica a pessoa ou papel dono da acao. Area/Time identifica a unidade organizacional que executa.",
+            "Esses campos ajudam na distribuicao do plano de acao e no acompanhamento."
+          ],
+          "examples": [
+            "Responsavel: AppSec, Engenharia, SRE.",
+            "Area/Time: Plataforma, Seguranca, Squad Mobile."
+          ]
+        },
+        {
+          "id": "campos-auditoria",
+          "title": "Auditoria e historico",
+          "paragraphs": [
+            "O sistema registra alteracoes relevantes com usuario, data, campo alterado e motivo. Isso garante trilha auditavel por item.",
+            "Use filtros por usuario, periodo e campo para investigar mudancas."
+          ],
+          "bullets": [
+            "Logs sao exibidos na tela de Auditoria e nos botoes Historico.",
+            "A retencao segue a politica definida pela organizacao.",
+            "Campos comuns: timestamp, usuario, role, acao, entidade, campo, antes/depois, IP, user_agent."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "evidencias",
+      "title": "Evidencias e exemplos",
+      "summary": "Como registrar evidencias consistentes e evitar problemas de auditoria.",
+      "items": [
+        {
+          "id": "evidencias-boa-evidencia",
+          "title": "O que e boa evidencia",
+          "paragraphs": [
+            "Boa evidencia e real, rastreavel e ligada ao produto ou escopo. Deve permitir verificacao e revisao posterior.",
+            "Quanto maior o DG, maior a necessidade de evidencias robustas, automatizadas e com historico."
+          ],
+          "bullets": [
+            "Logs de pipeline e saidas de ferramentas (SAST/SCA/DAST).",
+            "Tickets, PRs e aprovacoes formais.",
+            "Threat model, decisoes de design e SBOM.",
+            "Artefatos de release e historico de changes.",
+            "Treinamentos e politicas versionadas."
+          ]
+        },
+        {
+          "id": "evidencias-tipos",
+          "title": "Tipos aceitos",
+          "paragraphs": [
+            "Registre evidencias com o tipo mais adequado para o artefato. Isso facilita revisao e auditoria.",
+            "Use links estaveis e identifique claramente o dono da evidencia."
+          ],
+          "bullets": [
+            "Documento: politicas, procedimentos, guias.",
+            "Ticket: Jira, Azure DevOps, ServiceNow, etc.",
+            "URL: dashboards, repositorios, paginas internas.",
+            "Print: evidencias pontuais (use com cautela).",
+            "Pipeline: logs de CI/CD, scans automatizados.",
+            "Outro: quando nenhum tipo se aplica."
+          ]
+        },
+        {
+          "id": "evidencias-campos",
+          "title": "Campos do modulo de evidencias",
+          "paragraphs": [
+            "Cada evidencia possui campos que ajudam na revisao e na rastreabilidade.",
+            "Preencha sempre que possivel para evitar perda de contexto."
+          ],
+          "bullets": [
+            "Tipo: documento, ticket, URL, print, pipeline ou outro.",
+            "Descricao: resumo objetivo da evidencia.",
+            "Link/ID: URL ou identificador unico.",
+            "Owner: pessoa ou area responsavel.",
+            "Data e Validade: quando a evidencia foi gerada e ate quando e valida.",
+            "Status de revisao: pendente, aprovado ou rejeitado.",
+            "Observacoes: contexto adicional."
+          ]
+        },
+        {
+          "id": "evidencias-boas-praticas",
+          "title": "Boas praticas",
+          "paragraphs": [
+            "Evidencias devem ser verificaveis e atualizadas. Evite links quebrados ou artefatos sem contexto.",
+            "Sempre preencha owner, validade (quando aplicavel) e uma descricao clara."
+          ],
+          "bullets": [
+            "Prefira evidencias automatizadas ou geradas por sistemas oficiais.",
+            "Inclua datas e versoes quando necessario.",
+            "Use a coluna Observacoes para explicar excecoes.",
+            "Status de revisao ajuda a sinalizar se a evidencia ja foi validada."
+          ]
+        },
+        {
+          "id": "evidencias-red-flags",
+          "title": "Red flags",
+          "paragraphs": [
+            "Alguns sinais enfraquecem a qualidade do assessment e podem gerar questionamentos em auditoria.",
+            "Revise esses pontos antes de submeter para aprovacao."
+          ],
+          "bullets": [
+            "Evidencias sem origem ou sem owner.",
+            "Prints sem data ou contexto.",
+            "Links temporarios ou inacessiveis.",
+            "Evidencias fabricadas ou manipuladas."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cis",
+      "title": "CIS Controls e comparativos",
+      "summary": "Como interpretar controles, salvaguardas e o comparativo SSDF x CIS.",
+      "items": [
+        {
+          "id": "cis-control-safeguard",
+          "title": "Control, Safeguard e IG",
+          "paragraphs": [
+            "Controls representam dominios amplos, enquanto Safeguards sao atividades detalhadas. IG define o nivel de rigor e ajuda a priorizar implementacoes.",
+            "No SSDF Compass, cada Safeguard pode ter origem automatica (via mapeamento SSDF) ou manual."
+          ],
+          "bullets": [
+            "IG1 < IG2 < IG3 em ordem de prioridade.",
+            "Origem: mapeado pelo SSDF ou nao mapeado."
+          ]
+        },
+        {
+          "id": "cis-resumo-salvaguardas",
+          "title": "Resumo por Controle e Salvaguardas",
+          "paragraphs": [
+            "O Resumo por Controle mostra a visao agregada por Control (quantidade de salvaguardas, cobertura e maturidade media).",
+            "A tabela de Salvaguardas mostra cada item individual, incluindo status, maturidade, cobertura e tarefas SSDF relacionadas."
+          ],
+          "bullets": [
+            "Resumo por Controle: Salvaguardas, Derivados, Overrides, Lacunas.",
+            "Resumo por Controle: Maturidade media e Cobertura media.",
+            "Salvaguardas: Salvaguarda, Controle, IG, Status, Maturidade, Cobertura, Origem, SSDF relacionado.",
+            "Origem indica se a salvaguarda veio do SSDF ou foi registrada manualmente.",
+            "Derivados sao resultados calculados automaticamente a partir do SSDF.",
+            "Overrides sobrescrevem valores derivados quando ha justificativa.",
+            "Lacunas aparecem quando nao ha mapeamento ou evidencia suficiente."
+          ]
+        },
+        {
+          "id": "cis-mapeamentos",
+          "title": "Mapeamentos SSDF x CIS",
+          "paragraphs": [
+            "O modulo de Mapeamentos define a relacao entre tarefas SSDF e Controls/Safeguards CIS.",
+            "Esses mapeamentos alimentam o comparativo e a derivacao automatica de resultados."
+          ],
+          "bullets": [
+            "Tipo: DIRECT, PARTIAL ou SUPPORTS.",
+            "Peso: valor entre 0 e 1 para indicar relevancia do mapeamento.",
+            "Notas: justificativa ou contexto do mapeamento.",
+            "Atualize quando houver mudanca no framework ou no produto."
+          ]
+        },
+        {
+          "id": "cis-comparativo",
+          "title": "Comparativo SSDF x CIS",
+          "paragraphs": [
+            "O comparativo cruza as tarefas SSDF com o mapeamento CIS para identificar lacunas e ajustes necessarios.",
+            "Quando o SSDF e atualizado, os resultados CIS derivados devem refletir automaticamente o novo estado (replicacao via mapeamentos)."
+          ],
+          "bullets": [
+            "Atualize mapeamentos quando houver mudanca no framework ou no produto.",
+            "Use overrides apenas quando necessario e sempre com justificativa."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "auditoria",
+      "title": "Auditoria (Admin)",
+      "summary": "Rastreabilidade, logs e filtros para auditoria interna.",
+      "items": [
+        {
+          "id": "auditoria-eventos",
+          "title": "O que e registrado",
+          "paragraphs": [
+            "Tudo que impacta rastreabilidade deve gerar log: criacao, edicao e exclusao de entidades, alem de alteracoes de permissao.",
+            "Mudancas em liberacao de edicao e publicacao tambem sao registradas."
+          ],
+          "bullets": [
+            "Organizacoes, assessments, tarefas, evidencias, usuarios e mapeamentos.",
+            "Mudancas de permissao, liberacao/bloqueio de edicao.",
+            "Eventos de autenticacao e SSO."
+          ]
+        },
+        {
+          "id": "auditoria-campos-log",
+          "title": "Campos recomendados no log",
+          "bullets": [
+            "timestamp",
+            "usuario",
+            "role",
+            "acao",
+            "entidade",
+            "entity_id",
+            "campo",
+            "antes/depois",
+            "IP",
+            "user_agent",
+            "correlation_id",
+            "resultado (sucesso/falha)"
+          ]
+        },
+        {
+          "id": "auditoria-filtros",
+          "title": "Filtros mais usados",
+          "bullets": [
+            "Usuario",
+            "Acao",
+            "Entidade",
+            "Campo",
+            "Periodo"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "faq",
+      "title": "FAQ",
+      "summary": "Perguntas frequentes sobre avaliacao, edicao e uso da plataforma.",
+      "items": [
+        {
+          "id": "faq-primeiro",
+          "title": "O que eu preencho primeiro?",
+          "paragraphs": [
+            "Comece pelo escopo, DG e filtros por grupo. Depois priorize tarefas criticas (P0/P1)."
+          ]
+        },
+        {
+          "id": "faq-implementado",
+          "title": "Como sei se esta Implementado?",
+          "paragraphs": [
+            "Quando existe evidencia rastreavel, repetivel e aplicavel ao escopo."
+          ]
+        },
+        {
+          "id": "faq-nao-aplicavel",
+          "title": "Quando usar Nao aplicavel?",
+          "paragraphs": [
+            "Use Nao aplicavel apenas quando a tarefa nao faz sentido para o escopo atual. Registre o motivo em observacoes para evitar duvidas futuras."
+          ]
+        },
+        {
+          "id": "faq-maturidade-3",
+          "title": "O que significa maturidade 3?",
+          "paragraphs": [
+            "Processo medido e melhorado continuamente, com metricas, tendencias e automacao."
+          ]
+        },
+        {
+          "id": "faq-edicao",
+          "title": "Quem pode editar?",
+          "paragraphs": [
+            "Administradores sempre podem editar. Assessores so editam quando a revisao esta em rascunho e a edicao esta liberada.",
+            "Se o assessment estiver aprovado, o admin deve liberar uma nova revisao em rascunho."
+          ]
+        },
+        {
+          "id": "faq-ordenacao",
+          "title": "Como ordenar tabelas?",
+          "paragraphs": [
+            "Clique no cabecalho das colunas para alternar entre ordem ascendente e descendente.",
+            "O estado da ordenacao fica no link, facilitando o compartilhamento com outros usuarios."
+          ]
+        },
+        {
+          "id": "faq-auditoria",
+          "title": "Como usar o historico?",
+          "paragraphs": [
+            "Abra o Historico em cada tarefa ou evidencia para ver alteracoes por campo. Use filtros por usuario e periodo para investigar mudancas."
+          ]
+        }
+      ]
+    }
+  ]
+}

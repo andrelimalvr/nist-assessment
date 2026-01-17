@@ -1,16 +1,5 @@
-"use client";
-
-import { useMemo, useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import SortHeader from "@/components/table/sort-header";
-import {
-  applySortDirection,
-  compareNumbers,
-  compareSsdfGroup,
-  compareSsdfId,
-  compareStrings,
-  SortDirection
-} from "@/lib/sorters";
+import SortableTableHeader from "@/components/table/sortable-table-header";
 
 export type RoadmapRow = {
   id: string;
@@ -25,121 +14,74 @@ export type RoadmapRow = {
 };
 
 type SortKey = "priority" | "groupId" | "taskId" | "gap" | "weight" | "status" | "owner";
-
-type SortState = {
-  key: SortKey;
-  direction: SortDirection;
-};
+const DEFAULT_SORT_KEY: SortKey = "priority";
 
 export default function RoadmapTable({ rows }: { rows: RoadmapRow[] }) {
-  const [sort, setSort] = useState<SortState>({ key: "priority", direction: "desc" });
-
-  const sortedRows = useMemo(() => {
-    const sorted = [...rows];
-    sorted.sort((a, b) => {
-      let result = 0;
-      switch (sort.key) {
-        case "priority":
-          result = compareNumbers(a.priority, b.priority);
-          break;
-        case "groupId":
-          result = compareSsdfGroup(a.groupId, b.groupId);
-          break;
-        case "taskId":
-          result = compareSsdfId(a.taskId, b.taskId);
-          break;
-        case "gap":
-          result = compareNumbers(a.gap, b.gap);
-          break;
-        case "weight":
-          result = compareNumbers(a.weight, b.weight);
-          break;
-        case "status":
-          result = compareStrings(a.statusLabel, b.statusLabel);
-          break;
-        case "owner":
-          result = compareStrings(a.owner ?? "", b.owner ?? "");
-          break;
-        default:
-          result = 0;
-      }
-      return applySortDirection(result, sort.direction);
-    });
-    return sorted;
-  }, [rows, sort]);
-
-  const toggleSort = (key: SortKey) => {
-    setSort((prev) =>
-      prev.key === key
-        ? { key, direction: prev.direction === "asc" ? "desc" : "asc" }
-        : { key, direction: "asc" }
-    );
-  };
-
   return (
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>
-            <SortHeader
+          <TableHead title="Prioridade = Gap * Peso">
+            <SortableTableHeader
               label="Prioridade"
-              active={sort.key === "priority"}
-              direction={sort.direction}
-              onClick={() => toggleSort("priority")}
+              sortKey="priority"
+              defaultSortKey={DEFAULT_SORT_KEY}
+              defaultDirection="desc"
+              initialDirection="desc"
             />
           </TableHead>
           <TableHead>
-            <SortHeader
+            <SortableTableHeader
               label="Grupo"
-              active={sort.key === "groupId"}
-              direction={sort.direction}
-              onClick={() => toggleSort("groupId")}
+              sortKey="groupId"
+              defaultSortKey={DEFAULT_SORT_KEY}
+              defaultDirection="desc"
             />
           </TableHead>
           <TableHead>
-            <SortHeader
+            <SortableTableHeader
               label="Tarefa"
-              active={sort.key === "taskId"}
-              direction={sort.direction}
-              onClick={() => toggleSort("taskId")}
+              sortKey="taskId"
+              defaultSortKey={DEFAULT_SORT_KEY}
+              defaultDirection="desc"
             />
           </TableHead>
-          <TableHead>
-            <SortHeader
+          <TableHead title="Distancia entre alvo e maturidade">
+            <SortableTableHeader
               label="Gap"
-              active={sort.key === "gap"}
-              direction={sort.direction}
-              onClick={() => toggleSort("gap")}
+              sortKey="gap"
+              defaultSortKey={DEFAULT_SORT_KEY}
+              defaultDirection="desc"
             />
           </TableHead>
-          <TableHead>
-            <SortHeader
+          <TableHead title="Peso da tarefa no score">
+            <SortableTableHeader
               label="Peso"
-              active={sort.key === "weight"}
-              direction={sort.direction}
-              onClick={() => toggleSort("weight")}
+              sortKey="weight"
+              defaultSortKey={DEFAULT_SORT_KEY}
+              defaultDirection="desc"
             />
           </TableHead>
           <TableHead>
-            <SortHeader
+            <SortableTableHeader
               label="Status"
-              active={sort.key === "status"}
-              direction={sort.direction}
-              onClick={() => toggleSort("status")}
+              sortKey="status"
+              defaultSortKey={DEFAULT_SORT_KEY}
+              defaultDirection="desc"
             />
           </TableHead>
           <TableHead>
-            <SortHeader
+            <SortableTableHeader
               label="Responsavel"
-              active={sort.key === "owner"}
-              direction={sort.direction}
-              onClick={() => toggleSort("owner")}
+              sortKey="owner"
+              defaultSortKey={DEFAULT_SORT_KEY}
+              defaultDirection="desc"
             />
           </TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
-        {sortedRows.map((item) => (
+        {rows.map((item) => (
           <TableRow key={item.id}>
             <TableCell className="font-semibold">{item.priority}</TableCell>
             <TableCell>{item.groupId}</TableCell>
@@ -153,7 +95,7 @@ export default function RoadmapTable({ rows }: { rows: RoadmapRow[] }) {
             <TableCell>{item.owner || "-"}</TableCell>
           </TableRow>
         ))}
-        {sortedRows.length === 0 ? (
+        {rows.length === 0 ? (
           <TableRow>
             <TableCell colSpan={7} className="text-sm text-muted-foreground">
               Nenhum item encontrado.

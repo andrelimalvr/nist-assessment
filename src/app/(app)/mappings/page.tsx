@@ -8,8 +8,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { createMapping } from "@/app/(app)/mappings/actions";
+import SortableTableHeader from "@/components/table/sortable-table-header";
+import { sortRows } from "@/lib/table-sorting";
+import type { SortDirection } from "@/lib/sorters";
 
-export default async function MappingsPage() {
+export default async function MappingsPage({
+  searchParams
+}: {
+  searchParams?: { sort?: string; dir?: string };
+}) {
   const session = await getServerSession(authOptions);
   const isAdmin = session?.user?.role === Role.ADMIN;
 
@@ -32,6 +39,36 @@ export default async function MappingsPage() {
       orderBy: { createdAt: "desc" }
     })
   ]);
+
+  const allowedSortKeys = new Set([
+    "ssdf",
+    "group",
+    "cisControl",
+    "cisSafeguard",
+    "mappingType",
+    "weight",
+    "notes"
+  ]);
+  const defaultSortKey = "ssdf";
+  const sortKey =
+    searchParams?.sort && allowedSortKeys.has(searchParams.sort)
+      ? searchParams.sort
+      : defaultSortKey;
+  const direction: SortDirection =
+    searchParams?.dir === "asc" ? "asc" : searchParams?.dir === "desc" ? "desc" : "asc";
+
+  const sortedMappings = sortRows(mappings, sortKey, direction, {
+    ssdf: { type: "ssdfId", accessor: (row) => row.ssdfTask.id },
+    group: { type: "ssdfGroup", accessor: (row) => row.ssdfTask.practice.groupId },
+    cisControl: {
+      type: "controlId",
+      accessor: (row) => row.cisControl?.id ?? row.cisSafeguard?.control?.id ?? null
+    },
+    cisSafeguard: { type: "safeguardId", accessor: (row) => row.cisSafeguard?.id ?? null },
+    mappingType: { type: "stringLocale", accessor: (row) => row.mappingType },
+    weight: { type: "number", accessor: (row) => row.weight },
+    notes: { type: "stringLocale", accessor: (row) => row.notes ?? null }
+  });
 
   return (
     <div className="space-y-8">
@@ -132,18 +169,60 @@ export default async function MappingsPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>SSDF</TableHead>
-                <TableHead>Grupo</TableHead>
-                <TableHead>CIS Control</TableHead>
-                <TableHead>CIS Safeguard</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Peso</TableHead>
-                <TableHead>Notas</TableHead>
+                <TableHead>
+                  <SortableTableHeader
+                    label="SSDF"
+                    sortKey="ssdf"
+                    defaultSortKey={defaultSortKey}
+                  />
+                </TableHead>
+                <TableHead>
+                  <SortableTableHeader
+                    label="Grupo"
+                    sortKey="group"
+                    defaultSortKey={defaultSortKey}
+                  />
+                </TableHead>
+                <TableHead>
+                  <SortableTableHeader
+                    label="CIS Control"
+                    sortKey="cisControl"
+                    defaultSortKey={defaultSortKey}
+                  />
+                </TableHead>
+                <TableHead>
+                  <SortableTableHeader
+                    label="CIS Safeguard"
+                    sortKey="cisSafeguard"
+                    defaultSortKey={defaultSortKey}
+                  />
+                </TableHead>
+                <TableHead>
+                  <SortableTableHeader
+                    label="Tipo"
+                    sortKey="mappingType"
+                    defaultSortKey={defaultSortKey}
+                  />
+                </TableHead>
+                <TableHead>
+                  <SortableTableHeader
+                    label="Peso"
+                    sortKey="weight"
+                    defaultSortKey={defaultSortKey}
+                  />
+                </TableHead>
+                <TableHead>
+                  <SortableTableHeader
+                    label="Notas"
+                    sortKey="notes"
+                    defaultSortKey={defaultSortKey}
+                  />
+                </TableHead>
                 <TableHead>Acoes</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {mappings.map((mapping) => (
+              {sortedMappings.map((mapping) => (
                 <TableRow key={mapping.id}>
                   <TableCell>
                     <div className="text-xs text-muted-foreground">{mapping.ssdfTask.id}</div>

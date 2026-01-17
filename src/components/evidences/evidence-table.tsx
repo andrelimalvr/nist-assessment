@@ -1,16 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import SortHeader from "@/components/table/sort-header";
-import {
-  applySortDirection,
-  compareNumbers,
-  compareSsdfId,
-  compareStrings,
-  SortDirection
-} from "@/lib/sorters";
+import SortableTableHeader from "@/components/table/sortable-table-header";
 import { formatDate } from "@/lib/format";
 import { EvidenceReviewStatus } from "@prisma/client";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -37,11 +30,7 @@ export type EvidenceRow = {
 };
 
 type SortKey = "taskId" | "type" | "description" | "owner" | "date" | "validUntil";
-
-type SortState = {
-  key: SortKey;
-  direction: SortDirection;
-};
+const DEFAULT_SORT_KEY: SortKey = "date";
 
 type EvidenceTableProps = {
   rows: EvidenceRow[];
@@ -67,49 +56,9 @@ const REVIEW_LABELS: Record<string, string> = {
 
 export default function EvidenceTable({ rows, canEdit }: EvidenceTableProps) {
   const router = useRouter();
-  const [sort, setSort] = useState<SortState>({ key: "date", direction: "desc" });
   const [selected, setSelected] = useState<EvidenceRow | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const sortedRows = useMemo(() => {
-    const sorted = [...rows];
-    sorted.sort((a, b) => {
-      let result = 0;
-      switch (sort.key) {
-        case "taskId":
-          result = compareSsdfId(a.taskId, b.taskId);
-          break;
-        case "type":
-          result = compareStrings(a.type, b.type);
-          break;
-        case "description":
-          result = compareStrings(a.description, b.description);
-          break;
-        case "owner":
-          result = compareStrings(a.owner ?? "", b.owner ?? "");
-          break;
-        case "date":
-          result = compareNumbers(a.dateValue, b.dateValue);
-          break;
-        case "validUntil":
-          result = compareNumbers(a.validUntilValue, b.validUntilValue);
-          break;
-        default:
-          result = 0;
-      }
-      return applySortDirection(result, sort.direction);
-    });
-    return sorted;
-  }, [rows, sort]);
-
-  const toggleSort = (key: SortKey) => {
-    setSort((prev) =>
-      prev.key === key
-        ? { key, direction: prev.direction === "asc" ? "desc" : "asc" }
-        : { key, direction: "asc" }
-    );
-  };
 
   const handleSave = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -154,59 +103,60 @@ export default function EvidenceTable({ rows, canEdit }: EvidenceTableProps) {
         <TableHeader>
           <TableRow>
           <TableHead>
-            <SortHeader
+            <SortableTableHeader
               label="Tarefa"
-              active={sort.key === "taskId"}
-              direction={sort.direction}
-              onClick={() => toggleSort("taskId")}
+              sortKey="taskId"
+              defaultSortKey={DEFAULT_SORT_KEY}
+              defaultDirection="desc"
             />
           </TableHead>
           <TableHead>
-            <SortHeader
+            <SortableTableHeader
               label="Tipo"
-              active={sort.key === "type"}
-              direction={sort.direction}
-              onClick={() => toggleSort("type")}
+              sortKey="type"
+              defaultSortKey={DEFAULT_SORT_KEY}
+              defaultDirection="desc"
             />
           </TableHead>
           <TableHead>Revisao</TableHead>
           <TableHead>
-            <SortHeader
+            <SortableTableHeader
               label="Evidencia"
-              active={sort.key === "description"}
-              direction={sort.direction}
-              onClick={() => toggleSort("description")}
+              sortKey="description"
+              defaultSortKey={DEFAULT_SORT_KEY}
+              defaultDirection="desc"
             />
           </TableHead>
           <TableHead>
-            <SortHeader
+            <SortableTableHeader
               label="Owner"
-              active={sort.key === "owner"}
-              direction={sort.direction}
-              onClick={() => toggleSort("owner")}
+              sortKey="owner"
+              defaultSortKey={DEFAULT_SORT_KEY}
+              defaultDirection="desc"
             />
           </TableHead>
           <TableHead>
-            <SortHeader
+            <SortableTableHeader
               label="Data"
-              active={sort.key === "date"}
-              direction={sort.direction}
-              onClick={() => toggleSort("date")}
+              sortKey="date"
+              defaultSortKey={DEFAULT_SORT_KEY}
+              defaultDirection="desc"
+              initialDirection="desc"
             />
           </TableHead>
           <TableHead>
-            <SortHeader
+            <SortableTableHeader
               label="Validade"
-              active={sort.key === "validUntil"}
-              direction={sort.direction}
-              onClick={() => toggleSort("validUntil")}
+              sortKey="validUntil"
+              defaultSortKey={DEFAULT_SORT_KEY}
+              defaultDirection="desc"
             />
           </TableHead>
           <TableHead>Acoes</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {sortedRows.map((evidence) => (
+          {rows.map((evidence) => (
             <TableRow key={evidence.id}>
             <TableCell>
               <div className="text-xs text-muted-foreground">{evidence.taskId}</div>
@@ -248,7 +198,7 @@ export default function EvidenceTable({ rows, canEdit }: EvidenceTableProps) {
             </TableCell>
             </TableRow>
           ))}
-          {sortedRows.length === 0 ? (
+          {rows.length === 0 ? (
             <TableRow>
               <TableCell colSpan={8} className="text-sm text-muted-foreground">
                 Nenhuma evidencia registrada.

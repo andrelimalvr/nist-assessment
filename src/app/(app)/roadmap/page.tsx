@@ -1,8 +1,11 @@
 ﻿import AssessmentPicker from "@/components/assessment/assessment-picker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import RoadmapTable from "@/components/roadmap/roadmap-table";
+import RoadmapInsights from "@/components/roadmap/roadmap-insights";
 import { prisma } from "@/lib/prisma";
 import { statusLabels } from "@/lib/ssdf";
+import { sortRows } from "@/lib/table-sorting";
+import type { SortDirection } from "@/lib/sorters";
 import { getServerSession } from "next-auth";
 import { Role, SsdfStatus } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
@@ -16,6 +19,8 @@ export default async function RoadmapPage({
     group?: string;
     owner?: string;
     status?: string;
+    sort?: string;
+    dir?: string;
   };
 }) {
   const session = await getServerSession(authOptions);
@@ -79,7 +84,7 @@ export default async function RoadmapPage({
   });
 
   const items = responses.map((response) => {
-    const gap = response.targetLevel - response.maturityLevel;
+    const gap = Math.max(response.targetLevel - response.maturityLevel, 0);
     const priority = gap * response.weight;
     return {
       id: response.id,
@@ -95,6 +100,39 @@ export default async function RoadmapPage({
       owner: response.owner,
       team: response.team
     };
+  });
+
+  const allowedSortKeys = new Set([
+    "priority",
+    "groupId",
+    "taskId",
+    "gap",
+    "weight",
+    "status",
+    "owner"
+  ]);
+  const defaultSortKey = "priority";
+  const sortKey =
+    searchParams?.sort && allowedSortKeys.has(searchParams.sort)
+      ? searchParams.sort
+      : defaultSortKey;
+  const direction: SortDirection =
+    searchParams?.dir === "asc"
+      ? "asc"
+      : searchParams?.dir === "desc"
+        ? "desc"
+        : sortKey === defaultSortKey
+          ? "desc"
+          : "asc";
+
+  const sortedItems = sortRows(items, sortKey, direction, {
+    priority: { type: "number", accessor: (row) => row.priority },
+    groupId: { type: "ssdfGroup", accessor: (row) => row.groupId },
+    taskId: { type: "ssdfId", accessor: (row) => row.taskId },
+    gap: { type: "number", accessor: (row) => row.gap },
+    weight: { type: "number", accessor: (row) => row.weight },
+    status: { type: "stringLocale", accessor: (row) => row.statusLabel },
+    owner: { type: "stringLocale", accessor: (row) => row.owner }
   });
 
   const groups = await prisma.ssdfGroup.findMany({ orderBy: { id: "asc" } });
@@ -164,7 +202,10 @@ export default async function RoadmapPage({
           <CardTitle>Lista priorizada</CardTitle>
         </CardHeader>
         <CardContent>
-          <RoadmapTable rows={items} />
+          <div className="mb-6">
+            <RoadmapInsights rows={sortedItems} />
+          </div>
+          <RoadmapTable rows={sortedItems} />
         </CardContent>
       </Card>
     </div>

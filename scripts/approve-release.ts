@@ -89,6 +89,17 @@ async function main() {
       }
     });
 
+    const snapshotRecord = await prisma.assessmentSnapshot.create({
+      data: {
+        assessmentId,
+        releaseId: release.id,
+        type: "APPROVED",
+        label: NOTE_APPROVE,
+        snapshot,
+        createdByUserId: admin.id
+      }
+    });
+
     await logAuditEvent({
       action: AuditAction.UPDATE,
       entityType: "AssessmentRelease",
@@ -100,6 +111,16 @@ async function main() {
       actor: { id: admin.id, email: admin.email, role: admin.role },
       requestContext,
       metadata: { notes: NOTE_APPROVE }
+    });
+
+    await logAuditEvent({
+      action: AuditAction.CREATE,
+      entityType: "AssessmentSnapshot",
+      entityId: snapshotRecord.id,
+      organizationId: assessment.organizationId,
+      actor: { id: admin.id, email: admin.email, role: admin.role },
+      requestContext,
+      metadata: { type: "APPROVED", releaseId: release.id }
     });
   }
 

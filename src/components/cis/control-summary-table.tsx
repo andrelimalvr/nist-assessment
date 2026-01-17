@@ -6,6 +6,7 @@ import SortHeader from "@/components/table/sort-header";
 import { ptBR } from "@/lib/i18n/ptBR";
 import { applySortDirection, compareControlId, compareNumbers, SortDirection } from "@/lib/sorters";
 import { formatNumber } from "@/lib/format";
+import DrilldownDrawer from "@/components/assessment/drilldown-drawer";
 
 type ControlSummaryRow = {
   controlId: string;
@@ -34,9 +35,10 @@ type SortState = {
 
 type ControlSummaryTableProps = {
   rows: ControlSummaryRow[];
+  assessmentId: string;
 };
 
-export default function ControlSummaryTable({ rows }: ControlSummaryTableProps) {
+export default function ControlSummaryTable({ rows, assessmentId }: ControlSummaryTableProps) {
   const [sort, setSort] = useState<SortState>({ key: "controlId", direction: "asc" });
 
   const sortedRows = useMemo(() => {
@@ -146,7 +148,14 @@ export default function ControlSummaryTable({ rows }: ControlSummaryTableProps) 
       <TableBody>
         {sortedRows.map((control) => (
           <TableRow key={control.controlId}>
-            <TableCell className="font-medium">{control.controlLabel}</TableCell>
+            <TableCell className="font-medium">
+              <DrilldownDrawer
+                assessmentId={assessmentId}
+                type="control"
+                targetId={control.controlId}
+                label={control.controlLabel}
+              />
+            </TableCell>
             <TableCell>{control.safeguardsTotal}</TableCell>
             <TableCell>{control.derivedCount}</TableCell>
             <TableCell>{control.manualOverrideCount}</TableCell>
