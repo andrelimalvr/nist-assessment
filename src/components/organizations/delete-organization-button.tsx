@@ -79,7 +79,7 @@ export default function DeleteOrganizationButton({
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
-        <Button variant="outline" size="sm">
+        <Button variant="destructive" size="sm">
           Excluir
         </Button>
       </AlertDialogTrigger>

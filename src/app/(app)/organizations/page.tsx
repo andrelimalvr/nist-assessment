@@ -10,10 +10,12 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { createOrganization } from "@/app/(app)/organizations/actions";
 import DeleteOrganizationButton from "@/components/organizations/delete-organization-button";
+import OrganizationEditDialog from "@/components/organizations/organization-edit-dialog";
 
 export default async function OrganizationsPage() {
   const session = await getServerSession(authOptions);
   const allowEdit = canEdit(session?.user?.role);
+  const isAdmin = session?.user?.role === Role.ADMIN;
 
   const accessibleOrgIds = await getAccessibleOrganizationIds(session);
   const orgFilter =
@@ -67,7 +69,7 @@ export default async function OrganizationsPage() {
                 <TableHead>Empresa</TableHead>
                 <TableHead>Assessments</TableHead>
                 <TableHead>Criado em</TableHead>
-                {session?.user?.role === Role.ADMIN ? <TableHead>Acoes</TableHead> : null}
+                {isAdmin ? <TableHead>Acoes</TableHead> : null}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -76,12 +78,15 @@ export default async function OrganizationsPage() {
                   <TableCell className="font-semibold">{org.name}</TableCell>
                   <TableCell>{org._count.assessments}</TableCell>
                   <TableCell>{org.createdAt.toISOString().slice(0, 10)}</TableCell>
-                  {session?.user?.role === Role.ADMIN ? (
+                  {isAdmin ? (
                     <TableCell>
-                      <DeleteOrganizationButton
-                        organizationId={org.id}
-                        organizationName={org.name}
-                      />
+                      <div className="flex flex-wrap items-center gap-2">
+                        <OrganizationEditDialog organization={{ id: org.id, name: org.name }} />
+                        <DeleteOrganizationButton
+                          organizationId={org.id}
+                          organizationName={org.name}
+                        />
+                      </div>
                     </TableCell>
                   ) : null}
                 </TableRow>
@@ -89,7 +94,7 @@ export default async function OrganizationsPage() {
               {organizations.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={session?.user?.role === Role.ADMIN ? 4 : 3}
+                    colSpan={isAdmin ? 4 : 3}
                     className="text-sm text-muted-foreground"
                   >
                     Nenhuma organizacao cadastrada.
