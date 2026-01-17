@@ -1,6 +1,5 @@
 import AssessmentPicker from "@/components/assessment/assessment-picker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
@@ -9,7 +8,9 @@ import { authOptions } from "@/lib/auth";
 import { getAccessibleOrganizationIds } from "@/lib/tenant";
 import { updateCisOverride } from "@/app/(app)/cis/actions";
 import ControlSummaryTable from "@/components/cis/control-summary-table";
+import SafeguardsTable from "@/components/cis/safeguards-table";
 import { getCisStatusLabel, getControlDisplay, getSafeguardDisplay, ptBR } from "@/lib/i18n/ptBR";
+import { compareSsdfId } from "@/lib/sorters";
 
 type IgStats = {
   total: number;
@@ -155,19 +156,25 @@ export default async function CisDashboardPage({
       : "NOT_MAPPED";
     const originLabel =
       ptBR.sources[originKey as keyof typeof ptBR.sources] ?? ptBR.common.notAvailable;
-    const sourceTasks = result?.derivedFromTaskIds
+    const sourceTaskIds = result?.derivedFromTaskIds ?? [];
+    const sortedTaskIds = [...sourceTaskIds].sort(compareSsdfId);
+    const sourceTaskSortKey = sortedTaskIds[0] ?? "";
+    const sourceTasks = sortedTaskIds
       .map((taskId) => taskLabelMap.get(taskId) ?? taskId)
       .join(", ");
 
     return {
-      id: safeguard.id,
-      name: getSafeguardDisplay(safeguard.id, safeguard.name),
+      safeguardId: safeguard.id,
+      safeguardLabel: getSafeguardDisplay(safeguard.id, safeguard.name),
+      controlId: safeguard.control.id,
       controlLabel: getControlDisplay(safeguard.control.id, safeguard.control.name),
       ig: safeguard.implementationGroup,
-      status: getCisStatusLabel(effectiveStatus),
+      statusKey: effectiveStatus ?? "",
+      statusLabel: getCisStatusLabel(effectiveStatus),
       maturity: effectiveMaturity,
       coverage: result?.derivedCoverageScore ?? 0,
       origin: originLabel,
+      sourceTaskSortKey,
       sourceTasks
     };
   });
@@ -294,43 +301,7 @@ export default async function CisDashboardPage({
           <CardTitle>{ptBR.cis.safeguardsTitle}</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{ptBR.columns.safeguard}</TableHead>
-                <TableHead>{ptBR.columns.control}</TableHead>
-                <TableHead>{ptBR.columns.ig}</TableHead>
-                <TableHead>{ptBR.columns.status}</TableHead>
-                <TableHead>{ptBR.columns.maturity}</TableHead>
-                <TableHead>{ptBR.columns.coverage}</TableHead>
-                <TableHead>{ptBR.columns.source}</TableHead>
-                <TableHead>{ptBR.cis.relatedSsdf}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {safeguardsRows.map((row) => (
-                <TableRow key={row.id}>
-                  <TableCell className="font-medium">{row.name}</TableCell>
-                  <TableCell>{row.controlLabel}</TableCell>
-                  <TableCell>{row.ig}</TableCell>
-                  <TableCell>{row.status}</TableCell>
-                  <TableCell>{row.maturity}</TableCell>
-                  <TableCell>{formatNumber(row.coverage, 1)}%</TableCell>
-                  <TableCell>{row.origin}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {row.sourceTasks || ptBR.common.notAvailable}
-                  </TableCell>
-                </TableRow>
-              ))}
-              {safeguardsRows.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-sm text-muted-foreground">
-                    {ptBR.cis.emptySafeguards}
-                  </TableCell>
-                </TableRow>
-              ) : null}
-            </TableBody>
-          </Table>
+          <SafeguardsTable rows={safeguardsRows} />
         </CardContent>
       </Card>
     </div>

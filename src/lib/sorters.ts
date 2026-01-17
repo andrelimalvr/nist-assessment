@@ -7,12 +7,29 @@ const SSDF_GROUP_ORDER: Record<string, number> = {
   RV: 4
 };
 
+const IG_ORDER: Record<string, number> = {
+  IG1: 1,
+  IG2: 2,
+  IG3: 3
+};
+
+const CIS_STATUS_ORDER: Record<string, number> = {
+  IMPLEMENTED: 1,
+  IN_PROGRESS: 2,
+  NOT_STARTED: 3,
+  NOT_APPLICABLE: 4
+};
+
 export function compareNumbers(a: number, b: number) {
   return a - b;
 }
 
 export function compareStrings(a: string, b: string) {
   return a.localeCompare(b);
+}
+
+export function compareStringsLocale(a: string, b: string, locale: string = "pt-BR") {
+  return a.localeCompare(b, locale, { sensitivity: "base" });
 }
 
 function toInt(value: string) {
@@ -66,6 +83,24 @@ export function compareSsdfId(a: string, b: string) {
 export function compareSsdfGroup(a: string, b: string) {
   const orderA = SSDF_GROUP_ORDER[a] ?? 99;
   const orderB = SSDF_GROUP_ORDER[b] ?? 99;
+  if (orderA !== orderB) {
+    return compareNumbers(orderA, orderB);
+  }
+  return compareStrings(a, b);
+}
+
+export function compareImplementationGroup(a: string, b: string) {
+  const orderA = IG_ORDER[a] ?? 99;
+  const orderB = IG_ORDER[b] ?? 99;
+  if (orderA !== orderB) {
+    return compareNumbers(orderA, orderB);
+  }
+  return compareStrings(a, b);
+}
+
+export function compareCisStatus(a: string, b: string) {
+  const orderA = CIS_STATUS_ORDER[a] ?? 99;
+  const orderB = CIS_STATUS_ORDER[b] ?? 99;
   if (orderA !== orderB) {
     return compareNumbers(orderA, orderB);
   }
