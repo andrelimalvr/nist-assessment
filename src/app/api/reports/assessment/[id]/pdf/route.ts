@@ -149,7 +149,7 @@ export async function GET(
   try {
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: "load" });
-    await page.emulateMediaType("screen");
+    await page.emulateMedia({ media: "screen" });
     pdf = await page.pdf({
       format: "A4",
       printBackground: true,
